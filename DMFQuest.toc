@@ -1,0 +1,20 @@
+## Interface: 80000
+## Author: Kelzu (Stormreaver EU)
+## Title: |cff8d00d1DMF|rQuest
+## Version: @project-version@
+## Notes: Reminder tool for Darkmoon Faire crafting quest materials
+## Notes-deDE: @localization(locale="deDE", key="Notes", namespace="TOC")@
+## Notes-esES: @localization(locale="esES", key="Notes", namespace="TOC")@
+## Notes-esMX: @localization(locale="esMX", key="Notes", namespace="TOC")@
+## Notes-frFR: @localization(locale="frFR", key="Notes", namespace="TOC")@
+## Notes-itIT: @localization(locale="itIT", key="Notes", namespace="TOC")@
+## Notes-ptBR: @localization(locale="ptBR", key="Notes", namespace="TOC")@
+## Notes-ruRU: @localization(locale="ruRU", key="Notes", namespace="TOC")@
+## Notes-koKR: @localization(locale="koKR", key="Notes", namespace="TOC")@
+## Notes-zhCN: @localization(locale="zhCN", key="Notes", namespace="TOC")@
+## Notes-zhTW: @localization(locale="zhTW", key="Notes", namespace="TOC")@
+## SavedVariables: DMFQConfig
+
+Localization.lua
+Zones.lua
+DMFQuest.lua
