@@ -42,6 +42,7 @@ If you run into a bug, please report it with via PM, or curseforges Ticket-tool:
 Most of the item and profession names should come automaticly from your client, but there are few phrases in the Frame and Config that needs to be translated. If you want to help translate this addon, do it at http://wow.curseforge.com/addons/dmfquest/localization/
 
 Translators for 2.0:
+
 Language | Translator(s)
 -------- | -------------
 German | Mistrahw, pas06
