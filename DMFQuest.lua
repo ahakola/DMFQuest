@@ -313,7 +313,17 @@ function f:CheckPortalZone() -- Check if Player is near the DMF Portal or nearby
 		f:CheckPortalZone()
 	end
 
-	local px, py = C_Map.GetPlayerMapPosition(C_Map.GetBestMapForUnit("player"), "player"):GetXY()
+	--local px, py = C_Map.GetPlayerMapPosition(C_Map.GetBestMapForUnit("player"), "player"):GetXY()
+	local uiMapID = C_Map.GetBestMapForUnit("player")
+	local px, py = 0, 0
+	if not uiMapID or type(uiMapID) ~= "number" then
+		ticker = C_Timer.NewTicker(5, tickerCallback)
+	else
+		local map = C_Map.GetPlayerMapPosition(uiMapID, "player")
+		if map then
+			px, py = map:GetXY()
+		end
+	end
 	--[[local px, py
 
 	if WorldMapFrame:IsShown() then
