@@ -358,6 +358,8 @@ function f:CheckPortalZone() -- Check if Player is near the DMF Portal or nearby
 				eventFrame:RegisterEvent("QUEST_ACCEPTED")
 				eventFrame:RegisterEvent("QUEST_LOG_UPDATE")
 				eventFrame:RegisterEvent("MERCHANT_SHOW")
+				eventFrame:RegisterEvent("MERCHANT_UPDATE")
+				eventFrame:RegisterEvent("MERCHANT_FILTER_ITEM_UPDATE")
 				eventFrame:RegisterEvent("QUEST_DETAIL")
 
 				self:UpdateItems()
@@ -399,6 +401,8 @@ function f:CheckPortalZone() -- Check if Player is near the DMF Portal or nearby
 				eventFrame:RegisterEvent("QUEST_ACCEPTED")
 				eventFrame:RegisterEvent("QUEST_LOG_UPDATE")
 				eventFrame:RegisterEvent("MERCHANT_SHOW")
+				eventFrame:RegisterEvent("MERCHANT_UPDATE")
+				eventFrame:RegisterEvent("MERCHANT_FILTER_ITEM_UPDATE")
 				eventFrame:RegisterEvent("QUEST_DETAIL")
 
 				self:UpdateItems()
@@ -621,13 +625,14 @@ function f:UpdateQuests() -- Keep track of Professions Quests status and item co
 				self.Lines[i]:Hide()
 			elseif IsQuestFlaggedCompleted(questData.quest) then -- Quest done
 				self.Strings[i]:SetText(format("|T%s:0|t %s - %d/%d\n%s%s|r", profession.icon, profession.name, profession.skillLevel, profession.maxSkillLevel, GREEN_FONT_COLOR_CODE, L.QuestDone))
-			elseif profession.skillLevel >= 75 then -- Quest not done, enough skill to do one
+			--elseif profession.skillLevel >= 75 then -- Quest not done, enough skill to do one
+			elseif profession.skillLevel >= 1 then -- Quest not done, enough skill to do one
 				if (profession.maxSkillLevel - profession.skillLevel) < 5 and profession.maxSkillLevel < skillCap then -- Danger to waste skillpoints by capping
 					self.Strings[i]:SetText(format("|T%s:0|t %s - %s%d/%d|r", profession.icon, profession.name, ORANGE_FONT_COLOR_CODE, profession.skillLevel, profession.maxSkillLevel))
 				else -- No need to worry about capping skill
 					self.Strings[i]:SetText(format("|T%s:0|t %s - %d/%d", profession.icon, profession.name, profession.skillLevel, profession.maxSkillLevel))
 				end
-				
+
 				if profession.id == 794 then
 					for id, amount in pairs(questData.currency) do
 						local name, current = GetCurrencyInfo(id)
@@ -762,7 +767,8 @@ function f:BuyItems() -- Automaticly buy quest items for players professions
 	for i = 1, #ProfData do
 		local profession = ProfData[i]
 
-		if profession.id and profession.id ~= 794 and profession.skillLevel >= 75 then
+		--if profession.id and profession.id ~= 794 and profession.skillLevel >= 75 then
+		if profession.id and profession.id ~= 794 and profession.skillLevel >= 1 then
 			-- Profession is found (and enough skill) but it is not Archaeology (they use currency instead of item)
 
 			local questData = ProfIDs[profession.id]
@@ -877,6 +883,8 @@ SlashCmdList.DMFQUEST = function(arg)
 			eventFrame:RegisterEvent("QUEST_ACCEPTED")
 			eventFrame:RegisterEvent("QUEST_LOG_UPDATE")
 			eventFrame:RegisterEvent("MERCHANT_SHOW")
+			eventFrame:RegisterEvent("MERCHANT_UPDATE")
+			eventFrame:RegisterEvent("MERCHANT_FILTER_ITEM_UPDATE")
 
 			f:Show()
 			f:Print(L.Showing)
@@ -1039,7 +1047,7 @@ function eventFrame:SKILL_LINES_CHANGED()
 	end
 end
 
-function eventFrame:MERCHANT_SHOW()
+--[[function eventFrame:MERCHANT_SHOW()
 	-- Buy items only during DMF and when Frame is visible, except when it is DMF and you are on quest A Fizzy Fusion (Alchemy)
 	--f:Print("CheckDMF: %s, IsShown: %s, GetQuestLogIndexByID: %d", tostring(f:CheckDMF()), tostring(f:IsShown()), tonumber(GetQuestLogIndexByID(29506)))
 	--if not self:CheckDMF() or not self:IsShown() and not (self:CheckDMF() and GetQuestLogIndexByID(29506) > 0) then
@@ -1051,6 +1059,31 @@ function eventFrame:MERCHANT_SHOW()
 	if f:CheckDMF() and (f:IsShown() or GetQuestLogIndexByID(29506) > 0) then
 		f:BuyItems()
 	end
+end]]
+
+do -- MERCHANT throttling
+	local throttling
+
+	local function DelayedBuyItems()
+		throttling = nil
+
+		if f:CheckDMF() and (f:IsShown() or GetQuestLogIndexByID(29506) > 0) then
+			f:BuyItems()
+		end
+	end
+
+	local function ThrottleBuyItems()
+		if not throttling then
+			if DEBUG then Debug("- Throttling Buy Items...") end -- Debug
+
+			C_Timer.After(1, DelayedBuyItems)
+			throttling = true
+		end
+	end
+
+	eventFrame.MERCHANT_SHOW = ThrottleBuyItems
+	eventFrame.MERCHANT_UPDATE = ThrottleBuyItems
+	eventFrame.MERCHANT_FILTER_ITEM_UPDATE = ThrottleBuyItems
 end
 
 function eventFrame:QUEST_DETAIL()
