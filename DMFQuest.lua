@@ -300,6 +300,7 @@ function f:CheckDMF() -- Check if DMF is available
 	return result
 end
 
+local errorCount = 0
 function f:CheckPortalZone() -- Check if Player is near the DMF Portal or nearby Shopping area
 	local function distance(x, y, px, py) -- Calculate the distance between point A and point B
 		local dist = sqrt((x*100-px*100)^2+(y*100-py*100)^2) or 0
@@ -308,17 +309,25 @@ function f:CheckPortalZone() -- Check if Player is near the DMF Portal or nearby
 	end
 
 	local function tickerCallback() -- Use this callback to get self to CheckPortalZone when fired by ticker
-		if DEBUG then Debug("-- Tick Tock", ticker, ticker["_cancelled"]) end -- Debug
+		if DEBUG then Debug("-- Tick Tock End", errorCount, ticker, ticker["_cancelled"]) end -- Debug
+		ticker:Cancel()
 
-		f:CheckPortalZone()
+		if errorCount < 12 then -- If we have tried 12 times (once every 5secs for 1min), then give up
+			f:CheckPortalZone()
+		end
 	end
 
 	--local px, py = C_Map.GetPlayerMapPosition(C_Map.GetBestMapForUnit("player"), "player"):GetXY()
 	local uiMapID = C_Map.GetBestMapForUnit("player")
 	local px, py = 0, 0
 	if not uiMapID or type(uiMapID) ~= "number" then
-		ticker = C_Timer.NewTicker(5, tickerCallback)
+		if (type(ticker) == "table" and ticker["_cancelled"]) or ticker == nil then -- Throttle starting new timers
+			errorCount = errorCount + 1
+			ticker = C_Timer.NewTicker(5, tickerCallback)
+			if DEBUG then Debug("-- Tick Tock Start", errorCount, ticker, ticker["_cancelled"]) end -- Debug
+		end
 	else
+		errorCount = 0
 		local map = C_Map.GetPlayerMapPosition(uiMapID, "player")
 		if map then
 			px, py = map:GetXY()
@@ -352,6 +361,7 @@ function f:CheckPortalZone() -- Check if Player is near the DMF Portal or nearby
 			(GetRealZoneText() == B["Lion's Pride Inn"] and GetSubZoneText() == "") then
 			-- @ Portal Zone or shopping near
 			if DEBUG then Debug("-- Alliance @ Zone") end -- Debug
+			errorCount = 0
 
 			if self:CheckDMF() then -- @ Zone and DMF available
 				eventFrame:RegisterEvent("BAG_UPDATE")
@@ -389,6 +399,7 @@ function f:CheckPortalZone() -- Check if Player is near the DMF Portal or nearby
 			(GetRealZoneText() == B["Thunder Bluff"] and GetSubZoneText() == B["Thunder Bluff"]) then
 			-- @ Portal Zone or shopping near
 			if DEBUG then Debug("-- Horde @ Zone", distance(hx, hy, px, py)) end -- Debug
+			errorCount = 0
 
 			if (type(ticker) == "table" and ticker["_cancelled"]) or ticker == nil then
 				if DEBUG then Debug("- Start Ticker by Portal") end -- Debug
