@@ -5,3 +5,4 @@ license-output: LICENSE.txt
 ignore:
     - LICENSE.md
     - README.md
+    - .travis.yml

@@ -264,7 +264,7 @@ function f:CheckDB() -- Check SavedVariables are okay and if not, replace them w
 end
 
 function f:CheckDMF() -- Check if DMF is available
-	local timeData = C_Calendar.GetDate()
+	local timeData = C_DateAndTime.GetCurrentCalendarTime() -- C_Calendar.GetDate()
 	local month, day, year = timeData.month, timeData.monthDay, timeData.year
 	local result, openMonth, openYear
 	if CalendarFrame and CalendarFrame:IsShown() then -- Get current open month in calendar view
@@ -274,7 +274,7 @@ function f:CheckDMF() -- Check if DMF is available
 	end
 
 	if not month then
-		if DEBUG then Debug("- No CalendarGetDate() data") end -- Debug
+		if DEBUG then Debug("- No C_DateAndTime data") end -- Debug
 		return false
 	end
 
@@ -499,7 +499,10 @@ function f:UpdateItems() -- Keep track of turnInItems
 	end
 
 	local function showTip(frame, normalText, newbieText) -- Show Newbie Tooltip
-		GameTooltip_AddNewbieTip(frame, normalText, 1, 1, 1, newbieText);
+		--GameTooltip_AddNewbieTip(frame, normalText, 1, 1, 1, newbieText);
+		-- GameTooltip_AddNewbieTip deprecated in 8.2.5
+		GameTooltip:SetOwner(frame, "ANCHOR_RIGHT");
+		GameTooltip_SetTitle(GameTooltip, normalText);
 	end
 
 	local function hideTip() -- Hide Newbie Tooltip
@@ -513,7 +516,7 @@ function f:UpdateItems() -- Keep track of turnInItems
 		if questID and itemID then
 			self.Buttons[i].texture:SetTexture(GetItemIcon(itemID) or 134400) -- itemIcon or ?-icon
 
-			if IsQuestFlaggedCompleted(questID) then -- Quest done
+			if C_QuestLog.IsQuestFlaggedCompleted(questID) then -- Quest done
 				self.Buttons[i]:SetScript("OnClick", function(self) return end)
 				self.Buttons[i]:SetScript("OnEnter", function(self)
 					self.texture:SetVertexColor(0.75, 1, 0.75)
@@ -634,7 +637,7 @@ function f:UpdateQuests() -- Keep track of Professions Quests status and item co
 			if db.HideMax and profession.skillLevel == profession.maxSkillLevel then -- Hide maxed professions
 				self.Strings[i]:SetText(nil)
 				self.Lines[i]:Hide()
-			elseif IsQuestFlaggedCompleted(questData.quest) then -- Quest done
+			elseif C_QuestLog.IsQuestFlaggedCompleted(questData.quest) then -- Quest done
 				self.Strings[i]:SetText(format("|T%s:0|t %s - %d/%d\n%s%s|r", profession.icon, profession.name, profession.skillLevel, profession.maxSkillLevel, GREEN_FONT_COLOR_CODE, L.QuestDone))
 			--elseif profession.skillLevel >= 75 then -- Quest not done, enough skill to do one
 			elseif profession.skillLevel >= 1 then -- Quest not done, enough skill to do one
@@ -694,8 +697,8 @@ function f:UpdateQuests() -- Keep track of Professions Quests status and item co
 		self.Strings[7]:Show()
 		self.Lines[7]:Show()
 		local PetBattleIcon = 631719 -- 319458
-		local PBQuest1Done = IsQuestFlaggedCompleted(32175) -- Jeremy Feasel - Darkmoon Pet Battle!
-		local PBQuest2Done = IsQuestFlaggedCompleted(36471) -- Christoph VonFeasel - A New Darkmoon Challenger!
+		local PBQuest1Done = C_QuestLog.IsQuestFlaggedCompleted(32175) -- Jeremy Feasel - Darkmoon Pet Battle!
+		local PBQuest2Done = C_QuestLog.IsQuestFlaggedCompleted(36471) -- Christoph VonFeasel - A New Darkmoon Challenger!
 		local PBQuestCounter = 0
 		if PBQuest1Done then PBQuestCounter = PBQuestCounter + 1 end
 		if PBQuest2Done then PBQuestCounter = PBQuestCounter + 1 end
@@ -709,7 +712,7 @@ function f:UpdateQuests() -- Keep track of Professions Quests status and item co
 		self.Strings[8]:Show()
 		self.Lines[8]:Show()
 		local DeathMetalKnightIcon = 236362
-		local DMKQuestDone = IsQuestFlaggedCompleted(47767) -- Death Metal Knight
+		local DMKQuestDone = C_QuestLog.IsQuestFlaggedCompleted(47767) -- Death Metal Knight
 		self.Strings[8]:SetFormattedText("|T%s:0|t %s\n%s%s|r", DeathMetalKnightIcon, L.DeathMetalKnight, DMKQuestDone and GREEN_FONT_COLOR_CODE or RED_FONT_COLOR_CODE, DMKQuestDone and L.QuestDone or L.QuestNotDone)
 	else
 		self.Strings[8]:SetText(nil)
@@ -720,7 +723,7 @@ function f:UpdateQuests() -- Keep track of Professions Quests status and item co
 		self.Strings[9]:Show()
 		self.Lines[9]:Show()
 		local TestYourStrengthIcon = 136101
-		local TYSQuestDone = IsQuestFlaggedCompleted(29433) -- Test Your Strenght
+		local TYSQuestDone = C_QuestLog.IsQuestFlaggedCompleted(29433) -- Test Your Strenght
 		local TYSProgress, _, _, TYSCount, TYSCap = GetQuestObjectiveInfo(29433, 1, false)
 
 		self.Strings[9]:SetFormattedText("|T%s:0|t %s\n%s%s|r", TestYourStrengthIcon, L.TestYourStrength, TYSQuestDone and GREEN_FONT_COLOR_CODE or TYSCount == TYSCap and ORANGE_FONT_COLOR_CODE or RED_FONT_COLOR_CODE, TYSQuestDone and L.QuestDone or TYSProgress or L.QuestNotDone)
@@ -734,7 +737,7 @@ function f:UpdateQuests() -- Keep track of Professions Quests status and item co
 		self.Lines[10]:Show()
 		local FadedTreasureMapIcon = 237388
 		local FTMName = self:GetItemName(126930) or "n/a"
-		local FTMQuestDone = IsQuestFlaggedCompleted(38934) -- Silas' Secret Stash
+		local FTMQuestDone = C_QuestLog.IsQuestFlaggedCompleted(38934) -- Silas' Secret Stash
 		self.Strings[10]:SetFormattedText("|T%s:0|t %s\n%s%s|r", FadedTreasureMapIcon, FTMName, FTMQuestDone and GREEN_FONT_COLOR_CODE or RED_FONT_COLOR_CODE, FTMQuestDone and L.QuestDone or L.QuestNotDone)
 	else
 		self.Strings[10]:SetText(nil)
@@ -784,8 +787,8 @@ function f:BuyItems() -- Automaticly buy quest items for players professions
 
 			local questData = ProfIDs[profession.id]
 
-			--if not IsQuestFlaggedCompleted(questData.quest) and questData.items and next(questData.items) then
-			if not IsQuestFlaggedCompleted(questData.quest) and questData.items and type(questData.items) == "table" then
+			--if not C_QuestLog.IsQuestFlaggedCompleted(questData.quest) and questData.items and next(questData.items) then
+			if not C_QuestLog.IsQuestFlaggedCompleted(questData.quest) and questData.items and type(questData.items) == "table" then
 				-- Profession quest not completed and requires items
 
 				for id, amount in pairs(questData.items) do

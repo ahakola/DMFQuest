@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.com/ahakola/DMFQuest.svg?branch=master)](https://travis-ci.com/ahakola/DMFQuest)
+
 # DMF Quest
 
 **Blizzard have changed the way ItemInfo from Merchant items is delivered to player at some point. Due to this change you are going to need to open the MerchantFrame twice for AutoBuy to work correctly. I'm open for suggestions how to fix this if you have ideas.**
@@ -47,9 +49,10 @@ Language | Translator(s)
 -------- | -------------
 German | Mistrahw, pas06
 French | Mad_Ti
+Korean | etaras
+Russian | the_notorious_thug
+Traditional Chinese | sopgri
 
 ---
 
 Thanks to **Mistrahw** for providing the German translation (only languange that had translations) for the old 1.x.x-versions.
-
-**Please disable TradeSkillMaster before copy&pasting Lua errors to me, it makes the Lua error -reports almost impossible to read.**
