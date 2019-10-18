@@ -112,9 +112,10 @@ local ProfData = {
 -------------------------------------------------------------------------------
 -- DMFQuest Debug
 -------------------------------------------------------------------------------
---[===[@debug@
+--@debug@
 local DEBUG = true
---@end-debug@]===]
+--@end-debug@
+
 local function Debug(text, ...)
 	if text then
 		if text:match("%%[dfqsx%d%.]") then
