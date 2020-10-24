@@ -1,4 +1,4 @@
-## Interface: 80300
+## Interface: 90000
 ## Author: Kelzu (Stormreaver EU)
 ## Title: |cff8d00d1DMF|rQuest
 ## Version: @project-version@

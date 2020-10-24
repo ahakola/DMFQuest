@@ -233,7 +233,7 @@ function f:CreateUI() -- Creates UI elements
 
 		self.Lines[i] = self:CreateTexture()
 		self.Lines[i]:SetColorTexture(0.75, 0.75, 0.75, 0.5)
-		self.Lines[i]:SetSize(250, 1)
+		self.Lines[i]:SetSize(250, 1.2) -- (250, 1) for real, but hax to fix case where sometimes the scaling makes one of the lines disappear...
 		self.Lines[i]:SetPoint("BOTTOM", self.Strings[i], 0, -2)
 	end
 
@@ -650,12 +650,32 @@ function f:UpdateQuests() -- Keep track of Professions Quests status and item co
 
 				if profession.id == 794 then
 					for id, amount in pairs(questData.currency) do
-						local name, current = GetCurrencyInfo(id)
+						--local name, current = GetCurrencyInfo(id)
+						local currencyInfo = C_CurrencyInfo.GetCurrencyInfo(id)
+						--[[
+							name					string
+							isHeader				boolean
+							isHeaderExpanded		boolean
+							isTypeUnused			boolean
+							isShowInBackpack		boolean
+							quantity				number
+							iconFileID				number
+							maxQuantity				number
+							canEarnPerWeek			boolean
+							quantityEarnedThisWeek	number
+							isTradeable				boolean
+							quality					ItemQuality
+							maxWeeklyQuantity		number
+							discovered				boolean
+						]]
 					
-						if current < amount then
-							self.Strings[i]:SetText(format("%s\n%s %s%d/%d|r", self.Strings[i]:GetText(), name, RED_FONT_COLOR_CODE, current, amount))
+						--if current < amount then
+						if currencyInfo.quantity < amount then
+							--self.Strings[i]:SetText(format("%s\n%s %s%d/%d|r", self.Strings[i]:GetText(), name, RED_FONT_COLOR_CODE, current, amount))
+							self.Strings[i]:SetText(format("%s\n%s %s%d/%d|r", self.Strings[i]:GetText(), currencyInfo.name, RED_FONT_COLOR_CODE, currencyInfo.quantity, amount))
 						else
-							self.Strings[i]:SetText(format("%s\n%s %s%d/%d|r", self.Strings[i]:GetText(), name, GREEN_FONT_COLOR_CODE, current, amount))
+							--self.Strings[i]:SetText(format("%s\n%s %s%d/%d|r", self.Strings[i]:GetText(), name, GREEN_FONT_COLOR_CODE, current, amount))
+							self.Strings[i]:SetText(format("%s\n%s %s%d/%d|r", self.Strings[i]:GetText(), currencyInfo.name, GREEN_FONT_COLOR_CODE, currencyInfo.quantity, amount))
 						end
 					end
 				elseif questData.items and next(questData.items) then
@@ -903,6 +923,7 @@ SlashCmdList.DMFQUEST = function(arg)
 
 			f:Show()
 			f:Print(L.Showing)
+			--pinIt = true
 		end
 	end
 end
@@ -1082,7 +1103,8 @@ do -- MERCHANT throttling
 	local function DelayedBuyItems()
 		throttling = nil
 
-		if f:CheckDMF() and (f:IsShown() or GetQuestLogIndexByID(29506) > 0) then
+		--if f:CheckDMF() and (f:IsShown() or GetQuestLogIndexByID(29506) > 0) then
+		if f:CheckDMF() and (f:IsShown() or C_QuestLog.GetLogIndexForQuestID(29506) > 0) then
 			f:BuyItems()
 		end
 	end
@@ -1132,7 +1154,7 @@ panel:SetScript("OnShow", function()
 			insets = { left = 5, right = 5, top = 5, bottom = 5 }
 		}
 
-		local frame = CreateFrame("Frame", name, panel)
+		local frame = CreateFrame("Frame", name, panel, BackdropTemplateMixin and "BackdropTemplate")
 		frame:SetBackdrop(panelBackdrop)
 		frame:SetBackdropColor(0.06, 0.06, 0.06, 0.4)
 		frame:SetBackdropBorderColor(0.6, 0.6, 0.6, 1)
