@@ -510,7 +510,7 @@ function f:UpdateItems() -- Keep track of turnInItems
 		GameTooltip:Hide();
 	end
 
-	if self.CreateUI ~= nil then return end -- Don't go further too early to avoid errors
+	if (not self) or self.CreateUI ~= nil then return end -- Don't go further too early to avoid errors
 
 	local i = 1
 	for questID, itemID in pairs(turnInItems) do
@@ -625,7 +625,7 @@ function f:UpdateQuests() -- Keep track of Professions Quests status and item co
 		if DEBUG then Debug("-- Set Height:", height) end -- Debug
 	end
 
-	if self.CreateUI ~= nil then return end
+	if (not self) or self.CreateUI ~= nil then return end -- https://www.curseforge.com/wow/addons/dmfquest?comment=48
 
 	for i = 1, #ProfData do
 		local profession = ProfData[i]
@@ -1104,7 +1104,7 @@ do -- MERCHANT throttling
 		throttling = nil
 
 		--if f:CheckDMF() and (f:IsShown() or GetQuestLogIndexByID(29506) > 0) then
-		if f:CheckDMF() and (f:IsShown() or C_QuestLog.GetLogIndexForQuestID(29506) > 0) then
+		if f:CheckDMF() and (f:IsShown() or (C_QuestLog.GetLogIndexForQuestID(29506) and C_QuestLog.GetLogIndexForQuestID(29506) > 0)) then -- 29506 = A Fizzy Fusion
 			f:BuyItems()
 		end
 	end
