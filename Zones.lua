@@ -19,6 +19,7 @@ B["Lion's Pride Inn"] = "Lion's Pride Inn"
 
 B.Mulgore = "Mulgore"
 B["Thunder Bluff"] = "Thunder Bluff"
+B["The Cat and the Shaman"] = "The Cat and the Shaman"
 
 local CURRENT_LOCALE = GetLocale()
 if CURRENT_LOCALE:match("^en") then return end
@@ -35,6 +36,7 @@ B["Lion's Pride Inn"] = "Gasthaus \"Zur Höhle des Löwen\""
 
 B.Mulgore = "Mulgore"
 B["Thunder Bluff"] = "Donnerfels"
+B["The Cat and the Shaman"] = "Der Schamane und die Katze"
 
 return end
 
@@ -50,6 +52,7 @@ B["Lion's Pride Inn"] = "Posada Orgullo de León"
 
 B.Mulgore = "Mulgore"
 B["Thunder Bluff"] = "Cima del Trueno"
+B["The Cat and the Shaman"] = "El Gato y el Chamán"
 
 return end
 
@@ -65,6 +68,7 @@ B["Lion's Pride Inn"] = "Posada Orgullo de León"
 
 B.Mulgore = "Mulgore"
 B["Thunder Bluff"] = "Cima del Trueno"
+B["The Cat and the Shaman"] = "El Gato y el Chamán"
 
 return end
 
@@ -80,6 +84,7 @@ B["Lion's Pride Inn"] = "Auberge de la Fierté du lion"
 
 B.Mulgore = "Mulgore"
 B["Thunder Bluff"] = "Les Pitons-du-Tonnerre"
+B["The Cat and the Shaman"] = "Le Chat et le Chaman"
 
 return end
 
@@ -95,36 +100,7 @@ B["Lion's Pride Inn"] = "Locanda del Fiero Leone"
 
 B.Mulgore = "Mulgore"
 B["Thunder Bluff"] = "Picco del Tuono"
-
-return end
-
-
-------------------------------------------------------------------------
--- Brazilian Portuguese
-------------------------------------------------------------------------
-
-if CURRENT_LOCALE == "ptBR" then
-B["Elwynn Forest"] = "Floresta de Elwynn"
-B.Goldshire = "Vila d'Ouro"
-B["Lion's Pride Inn"] = "Estalagem do Leão Orgulhoso"
-
-B.Mulgore = "Mulgore"
-B["Thunder Bluff"] = "Penhasco do Trovão"
-
-return end
-
-
-------------------------------------------------------------------------
--- Russian
-------------------------------------------------------------------------
-
-if CURRENT_LOCALE == "ruRU" then
-B["Elwynn Forest"] = "Элвиннский лес"
-B.Goldshire = "Златоземье"
-B["Lion's Pride Inn"] = "Таверна \"Гордость льва\""
-
-B.Mulgore = "Мулгор"
-B["Thunder Bluff"] = "Громовой Утес"
+B["The Cat and the Shaman"] = "Gatti e Sciamani"
 
 return end
 
@@ -140,6 +116,39 @@ B["Lion's Pride Inn"] = "사자무리 여관"
 
 B.Mulgore = "멀고어"
 B["Thunder Bluff"] = "썬더 블러프"
+B["The Cat and the Shaman"] = "고양이와 주술사"
+
+return end
+
+
+------------------------------------------------------------------------
+-- Brazilian Portuguese
+------------------------------------------------------------------------
+
+if CURRENT_LOCALE == "ptBR" then
+B["Elwynn Forest"] = "Floresta de Elwynn"
+B.Goldshire = "Vila d'Ouro"
+B["Lion's Pride Inn"] = "Estalagem do Leão Orgulhoso"
+
+B.Mulgore = "Mulgore"
+B["Thunder Bluff"] = "Penhasco do Trovão"
+B["The Cat and the Shaman"] = "O Gato e o Xamã"
+
+return end
+
+
+------------------------------------------------------------------------
+-- Russian
+------------------------------------------------------------------------
+
+if CURRENT_LOCALE == "ruRU" then
+B["Elwynn Forest"] = "Элвиннский лес"
+B.Goldshire = "Златоземье"
+B["Lion's Pride Inn"] = "Таверна \"Гордость льва\""
+
+B.Mulgore = "Мулгор"
+B["Thunder Bluff"] = "Громовой Утес"
+B["The Cat and the Shaman"] = "\"Кот и шаман\""
 
 return end
 
@@ -155,6 +164,7 @@ B["Lion's Pride Inn"] = "狮王之傲旅店"
 
 B.Mulgore = "莫高雷"
 B["Thunder Bluff"] = "雷霆崖"
+B["The Cat and the Shaman"] = "猫和萨满"
 
 return end
 
@@ -170,6 +180,7 @@ B["Lion's Pride Inn"] = "獅王之傲旅店"
 
 B.Mulgore = "莫高雷"
 B["Thunder Bluff"] = "雷霆崖"
+B["The Cat and the Shaman"] = "貓與薩滿酒館"
 
 return end
 

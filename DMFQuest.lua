@@ -262,16 +262,56 @@ function f:CheckDB() -- Check SavedVariables are okay and if not, replace them w
 	if type(DMFQConfig.HideLow) ~= "boolean" then DMFQConfig.HideLow = false end
 	if type(DMFQConfig.PetBattle) ~= "boolean" then DMFQConfig.PetBattle = false end
 	if type(DMFQConfig.HideMax) ~= "boolean" then DMFQConfig.HideMax = false end
+	if type(DMFQConfig.ShowItemRewards) ~= "boolean" then DMFQConfig.ShowItemRewards = false end
+	if type(DMFQConfig.UseTimeOffset) ~= "boolean" then DMFQConfig.UseTimeOffset = false end
 end
 
 function f:CheckDMF() -- Check if DMF is available
 	local timeData = C_DateAndTime.GetCurrentCalendarTime() -- C_Calendar.GetDate()
-	local month, day, year = timeData.month, timeData.monthDay, timeData.year
+	local hour, day, month, year = timeData.hour, timeData.monthDay, timeData.month, timeData.year
 	local result, openMonth, openYear
 	if CalendarFrame and CalendarFrame:IsShown() then -- Get current open month in calendar view
 		--openMonth, openYear = CalendarGetMonth()
 		local monthInfo = C_Calendar.GetMonthInfo()
 		openMonth, openYear = monthInfo.month, monthInfo.year
+	end
+
+	if db.UseTimeOffset then -- Try to fix OC-servers timeoffset for the starting time.
+		local daysInMonth = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 }
+		local realmHours, realmMinutes = GetGameTime()
+		local localTime = date('*t')
+		local serverTimeOffset = realmHours - localTime.hour
+		if timeData.monthDay > localTime.day then
+			serverTimeOffset = serverTimeOffset + 24
+		elseif timeData.monthDay < localTime.day then
+			serverTimeOffset = serverTimeOffset - 24
+		end
+
+		hour = hour - serverTimeOffset
+		if DEBUG then Debug("- Time offset:", serverTimeOffset) end -- Debug
+
+		-- Check if we went to another date with the offset
+		if hour < 0 then
+			day = day - 1
+			hour = hour + 24
+		elseif hour > 23 then
+			day = day + 1
+			hour = hour - 24
+		end
+		if day <= 0 then
+			month = month - 1
+			day = daysInMonth[month] or 31
+		elseif (daysInMonth[month] and day > daysInMonth[month]) then
+			month = month + 1
+			day = 1
+		end
+		if month <= 0 then
+			year = year - 1
+			month = 12
+		elseif month > 12 then
+			year = year + 1
+			month = 1
+		end
 	end
 
 	if not month then
@@ -397,7 +437,9 @@ function f:CheckPortalZone() -- Check if Player is near the DMF Portal or nearby
 		end
 	elseif UnitFactionGroup("player") == "Horde" then
 		if (GetRealZoneText() == B["Mulgore"] and GetSubZoneText() == "" and distance(hx, hy, px, py) <= 5) or
-			(GetRealZoneText() == B["Thunder Bluff"] and GetSubZoneText() == B["Thunder Bluff"]) then
+			(GetRealZoneText() == B["Thunder Bluff"] and GetSubZoneText() == B["Thunder Bluff"]) or
+			(GetRealZoneText() == B["Thunder Bluff"] and GetSubZoneText() == B["The Cat and the Shaman"]) or
+			(GetRealZoneText() == B["The Cat and the Shaman"] and GetSubZoneText() == "") then
 			-- @ Portal Zone or shopping near
 			if DEBUG then Debug("-- Horde @ Zone", distance(hx, hy, px, py)) end -- Debug
 			errorCount = 0
@@ -471,6 +513,7 @@ function f:CheckPortalZone() -- Check if Player is near the DMF Portal or nearby
 	return false -- For those Unfactioned Pandaren
 end
 
+local ticketName
 function f:UpdateItems() -- Keep track of turnInItems
 	local function findQuest(id) --Is Player on Quest?
 		--[[
@@ -499,11 +542,28 @@ function f:UpdateItems() -- Keep track of turnInItems
 		end
 	end
 
+	rewardsTable = {
+		[71635] = 10, --Imbued Crystal
+		[71636] = 10, --Monstrous Egg
+		[71637] = 10, --Mysterious Grimoire
+		[71638] = 10, --Ornate Weapon
+		[71715] = 15, --A Treatise on Strategy
+		[71716] = 10, --Soothsayer's Runes
+		[71951] = 5, --Banner of the Fallen
+		[71952] = 5, --Captured Insignia
+		[71953] = 5, --Fallen Adventurer's Journal
+		[105891] = 10 -- Moonfang's Pelt
+	}
 	local function showTip(frame, normalText, newbieText) -- Show Newbie Tooltip
 		--GameTooltip_AddNewbieTip(frame, normalText, 1, 1, 1, newbieText);
 		-- GameTooltip_AddNewbieTip deprecated in 8.2.5
-		GameTooltip:SetOwner(frame, "ANCHOR_RIGHT");
-		GameTooltip_SetTitle(GameTooltip, normalText);
+		GameTooltip:SetOwner(frame, "ANCHOR_RIGHT")
+		if db.ShowItemRewards then
+			local count = newbieText ~= nil and rewardsTable[newbieText] or "?"
+			GameTooltip_SetTitle(GameTooltip, normalText .. "\n\n" .. GARRISON_MISSION_REWARD_HEADER .. " |T134481:16:16:0:0:32:32:2:30:2:30|t " .. count .. " " .. ticketName)
+		else
+			GameTooltip_SetTitle(GameTooltip, normalText)
+		end
 	end
 
 	local function hideTip() -- Hide Newbie Tooltip
@@ -511,6 +571,11 @@ function f:UpdateItems() -- Keep track of turnInItems
 	end
 
 	if (not self) or self.CreateUI ~= nil then return end -- Don't go further too early to avoid errors
+
+	if not ticketName then
+		local currencyInfo = C_CurrencyInfo.GetCurrencyInfo(515) -- Darkmoon Prize Ticket
+		ticketName = currencyInfo.name
+	end
 
 	local i = 1
 	for questID, itemID in pairs(turnInItems) do
@@ -532,7 +597,7 @@ function f:UpdateItems() -- Keep track of turnInItems
 				self.Buttons[i]:SetScript("OnClick", function(self) return end)
 				self.Buttons[i]:SetScript("OnEnter", function(self)
 					self.texture:SetVertexColor(0.75, 1, 1)
-					showTip(self, L.QuestReady)
+					showTip(self, L.QuestReady, itemID)
 					end)
 				self.Buttons[i]:SetScript("OnLeave", function(self)
 					self.texture:SetVertexColor(0, 1, 1)
@@ -545,7 +610,7 @@ function f:UpdateItems() -- Keep track of turnInItems
 					self.texture:SetVertexColor(0.75, 0.75, 0.75)
 					--showTip(self, L.QuestNoItem)
 					local link = ITEM_QUALITY_COLORS[3].hex.."["..f:GetItemName(itemID).."]|r" -- Rare Blue Color [Item name]
-					showTip(self, format(L.QuestNoItem, link))
+					showTip(self, format(L.QuestNoItem, link), itemID)
 				end)
 				self.Buttons[i]:SetScript("OnLeave", function(self)
 					self.texture:SetVertexColor(0.3, 0.3, 0.3)
@@ -560,7 +625,7 @@ function f:UpdateItems() -- Keep track of turnInItems
 				end)
 				self.Buttons[i]:SetScript("OnEnter", function(self)
 					self.texture:SetVertexColor(0.75, 0.75, 0.75)
-					showTip(self, L.QuestReadyToAccept)
+					showTip(self, L.QuestReadyToAccept, itemID)
 				end)
 				self.Buttons[i]:SetScript("OnLeave", function(self)
 					self.texture:SetVertexColor(1, 1, 1)
@@ -899,6 +964,21 @@ SlashCmdList.DMFQUEST = function(arg)
 			-- Reset DB and reload UI
 			wipe(db)
 			ReloadUI()
+		elseif arg == "offset" then
+			local timeData = C_DateAndTime.GetCurrentCalendarTime()
+			local realmHours, realmMinutes = GetGameTime()
+			local localTime = date('*t')
+			local serverTimeOffset = realmHours - localTime.hour
+			if timeData.monthDay > localTime.day then
+				serverTimeOffset = serverTimeOffset + 24
+			elseif timeData.monthDay < localTime.day then
+				serverTimeOffset = serverTimeOffset - 24
+			end
+
+			f:Print("Time offset:", serverTimeOffset < 0 and serverTimeOffset or "+"..serverTimeOffset, tostring(db.UseTimeOffset))
+		elseif arg == "checkzone" then
+			local check = f:CheckPortalZone()
+			f:Print("Zone Check:", tostring(check))
 		else
 			-- Error
 			f:Print(L.Syntax)
@@ -1384,7 +1464,7 @@ panel:SetScript("OnShow", function()
 
 	local AutoBuyCheckBox = CreateFrame("CheckButton", "$parentAutoBuyCheckBox", panel, "InterfaceOptionsCheckButtonTemplate")
 	AutoBuyCheckBox:SetPoint("TOPLEFT", CPanel, 8, -8)
-	AutoBuyCheckBox.Text:SetText(L.Enable)
+	AutoBuyCheckBox.Text:SetText(NORMAL_FONT_COLOR_CODE .. L.Enable .. FONT_COLOR_CODE_CLOSE)
 	AutoBuyCheckBox.tooltipText = L.Enable_Tip
 	AutoBuyCheckBox:SetScript("OnClick", function(this)
 		local checked = not not this:GetChecked()
@@ -1403,9 +1483,19 @@ panel:SetScript("OnShow", function()
 
 	--------------------------------------------------------------------
 
-	local LowSkillCheckBox = CreateFrame("CheckButton", "$parentLowSkillCheckBox", panel, "InterfaceOptionsCheckButtonTemplate")
+	--[[
+		https://www.wowhead.com/news=318875/darkmoon-faire-november-2020-skill-requirement-removed-from-profession-quests
+		---------------------------------------------------------------------------------
+		In the Shadowlands pre-patch, the 75 skill requirement has been removed from
+		Darkmoon Faire profession quests. You now only need to know a minimum of level 1,
+		and completing the quest still adds points to the highest expansion's profession
+		level known.
+		---------------------------------------------------------------------------------
+	]]--
+
+	--[[local LowSkillCheckBox = CreateFrame("CheckButton", "$parentLowSkillCheckBox", panel, "InterfaceOptionsCheckButtonTemplate")
 	LowSkillCheckBox:SetPoint("TOPLEFT", ABSubText, -4, -26)
-	LowSkillCheckBox.Text:SetText(L.HideLow)
+	LowSkillCheckBox.Text:SetText(NORMAL_FONT_COLOR_CODE .. L.HideLow .. FONT_COLOR_CODE_CLOSE)
 	LowSkillCheckBox.tooltipText = L.HideLow_Tip
 	LowSkillCheckBox:SetScript("OnClick", function(this)
 		local checked = not not this:GetChecked()
@@ -1418,15 +1508,17 @@ panel:SetScript("OnShow", function()
 		if DEBUG then Debug("C: HideLow", db.HideLow, checked) end
 	end)
 
-	local HLSubText = CPanel:CreateFontString("$parentSubText", "ARTWORK", "GameFontHighlightSmall")
+	local HLSubText = CPanel:CreateFontString("$parentSubText2", "ARTWORK", "GameFontHighlightSmall")
 	HLSubText:SetPoint("TOPLEFT", LowSkillCheckBox, "BOTTOMLEFT", 4, -8)
 	HLSubText:SetJustifyH("LEFT")
 	HLSubText:SetJustifyV("TOP")
 	HLSubText:SetText(L.HideLow_Desc)
+	]]
 
 	local HighSkillCheckBox = CreateFrame("CheckButton", "$parentHighSkillCheckBox", panel, "InterfaceOptionsCheckButtonTemplate")
-	HighSkillCheckBox:SetPoint("TOPLEFT", HLSubText, -4, -26)
-	HighSkillCheckBox.Text:SetText(L.HideHigh)
+	--HighSkillCheckBox:SetPoint("TOPLEFT", HLSubText, -4, -26)
+	HighSkillCheckBox:SetPoint("TOPLEFT", ABSubText, -4, -26)
+	HighSkillCheckBox.Text:SetText(NORMAL_FONT_COLOR_CODE .. L.HideHigh .. FONT_COLOR_CODE_CLOSE)
 	HighSkillCheckBox.tooltipText = L.HideMax_Tip
 	HighSkillCheckBox:SetScript("OnClick", function(this)
 		local checked = not not this:GetChecked()
@@ -1439,7 +1531,7 @@ panel:SetScript("OnShow", function()
 		if DEBUG then Debug("C: HideMax", db.HideMax, checked) end
 	end)
 
-	local HMSubText = CPanel:CreateFontString("$parentSubText2", "ARTWORK", "GameFontHighlightSmall")
+	local HMSubText = CPanel:CreateFontString("$parentSubText3", "ARTWORK", "GameFontHighlightSmall")
 	HMSubText:SetPoint("TOPLEFT", HighSkillCheckBox, "BOTTOMLEFT", 4, -8)
 	HMSubText:SetJustifyH("LEFT")
 	HMSubText:SetJustifyV("TOP")
@@ -1449,7 +1541,7 @@ panel:SetScript("OnShow", function()
 
 	local PetBattleCheckBox = CreateFrame("CheckButton", "$parentPetBattleCheckBox", panel, "InterfaceOptionsCheckButtonTemplate")
 	PetBattleCheckBox:SetPoint("TOPLEFT", HMSubText, -4, -26)
-	PetBattleCheckBox.Text:SetText(L.EnablePetBattle)
+	PetBattleCheckBox.Text:SetText(NORMAL_FONT_COLOR_CODE .. L.EnablePetBattle .. FONT_COLOR_CODE_CLOSE)
 	PetBattleCheckBox.tooltipText = L.PetBattle_Tip
 	PetBattleCheckBox:SetScript("OnClick", function(this)
 		local checked = not not this:GetChecked()
@@ -1463,8 +1555,9 @@ panel:SetScript("OnShow", function()
 	end)
 
 	local DeathMetalKnightChechBox = CreateFrame("CheckButton", "$parentDeathMetalKnightChechBox", panel, "InterfaceOptionsCheckButtonTemplate")
-	DeathMetalKnightChechBox:SetPoint("TOPLEFT", PetBattleCheckBox, "BOTTOMLEFT", 0, -8)
-	DeathMetalKnightChechBox.Text:SetText(L.EnableDeathMetalKnight)
+	--DeathMetalKnightChechBox:SetPoint("TOPLEFT", PetBattleCheckBox, "BOTTOMLEFT", 0, -8)
+	DeathMetalKnightChechBox:SetPoint("TOPLEFT", HMSubText, -4 + CPanel:GetWidth() / 2, -26)
+	DeathMetalKnightChechBox.Text:SetText(NORMAL_FONT_COLOR_CODE .. L.EnableDeathMetalKnight .. FONT_COLOR_CODE_CLOSE)
 	DeathMetalKnightChechBox.tooltipText = L.DeathMetalKnight_Tip
 	DeathMetalKnightChechBox:SetScript("OnClick", function(this)
 		local checked = not not this:GetChecked()
@@ -1478,8 +1571,9 @@ panel:SetScript("OnShow", function()
 	end)
 
 	local TestYourStrengthCheckBox = CreateFrame("CheckButton", "$parentTestYourStrengthChechBox", panel, "InterfaceOptionsCheckButtonTemplate")
-	TestYourStrengthCheckBox:SetPoint("TOPLEFT", DeathMetalKnightChechBox, "BOTTOMLEFT", 0, -8)
-	TestYourStrengthCheckBox.Text:SetText(L.EnableTestYourStrength)
+	--TestYourStrengthCheckBox:SetPoint("TOPLEFT", DeathMetalKnightChechBox, "BOTTOMLEFT", 0, -8)
+	TestYourStrengthCheckBox:SetPoint("TOPLEFT", PetBattleCheckBox, "BOTTOMLEFT", 0, -8)
+	TestYourStrengthCheckBox.Text:SetText(NORMAL_FONT_COLOR_CODE .. L.EnableTestYourStrength .. FONT_COLOR_CODE_CLOSE)
 	TestYourStrengthCheckBox.tooltipText = L.TestYourStrength_Tip
 	TestYourStrengthCheckBox:SetScript("OnClick", function(this)
 		local checked = not not this:GetChecked()
@@ -1493,8 +1587,9 @@ panel:SetScript("OnShow", function()
 	end)
 
 	local FadedTreasureMapCheckBox = CreateFrame("CheckButton", "$parentFadedTreasureMapChechBox", panel, "InterfaceOptionsCheckButtonTemplate")
-	FadedTreasureMapCheckBox:SetPoint("TOPLEFT", TestYourStrengthCheckBox, "BOTTOMLEFT", 0, -8)
-	FadedTreasureMapCheckBox.Text:SetText(L.EnableFadedTreasureMap)
+	--FadedTreasureMapCheckBox:SetPoint("TOPLEFT", TestYourStrengthCheckBox, "BOTTOMLEFT", 0, -8)
+	FadedTreasureMapCheckBox:SetPoint("TOPLEFT", DeathMetalKnightChechBox, "BOTTOMLEFT", 0, -8)
+	FadedTreasureMapCheckBox.Text:SetText(NORMAL_FONT_COLOR_CODE .. L.EnableFadedTreasureMap .. FONT_COLOR_CODE_CLOSE)
 	FadedTreasureMapCheckBox.tooltipText = L.FadedTreasureMap_Tip
 	FadedTreasureMapCheckBox:SetScript("OnClick", function(this)
 		local checked = not not this:GetChecked()
@@ -1507,23 +1602,65 @@ panel:SetScript("OnShow", function()
 		if DEBUG then Debug("C: FadedTreasureMap", db.FadedTreasureMap, checked) end
 	end)
 
-	local DMFSubText = CPanel:CreateFontString("$parentSubText", "ARTWORK", "GameFontHighlightSmall")
-	DMFSubText:SetPoint("TOPLEFT", FadedTreasureMapCheckBox, "BOTTOMLEFT", 4, -8)
+	local DMFSubText = CPanel:CreateFontString("$parentSubText4", "ARTWORK", "GameFontHighlightSmall")
+	--DMFSubText:SetPoint("TOPLEFT", FadedTreasureMapCheckBox, "BOTTOMLEFT", 4, -8)
+	DMFSubText:SetPoint("TOPLEFT", TestYourStrengthCheckBox, "BOTTOMLEFT", 4, -8)
 	DMFSubText:SetJustifyH("LEFT")
 	DMFSubText:SetJustifyV("TOP")
 	DMFSubText:SetText(L.Misc_Desc)
 
 	--------------------------------------------------------------------
 
+	local ShowItemRewardsCheckBox = CreateFrame("CheckButton", "$parentShowItemRewardsCheckBox", panel, "InterfaceOptionsCheckButtonTemplate")
+	ShowItemRewardsCheckBox:SetPoint("TOPLEFT", DMFSubText, -4, -26)
+	ShowItemRewardsCheckBox.Text:SetText(NORMAL_FONT_COLOR_CODE .. L.EnableShowItemRewards .. FONT_COLOR_CODE_CLOSE)
+	ShowItemRewardsCheckBox.tooltipText = L.ShowItemRewards_Tip
+	ShowItemRewardsCheckBox:SetScript("OnClick", function(this)
+		local checked = not not this:GetChecked()
+		PlaySound(checked and SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON or SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_OFF)
+		db.ShowItemRewards = checked
+
+		if DEBUG then Debug("C: ShowItemRewards", db.ShowItemRewards, checked) end
+	end)
+
+	local ShowItemRewardsSubText = CPanel:CreateFontString("$parentSubText5", "ARTWORK", "GameFontHighlightSmall")
+	ShowItemRewardsSubText:SetPoint("TOPLEFT", ShowItemRewardsCheckBox, "BOTTOMLEFT", 4, -8)
+	ShowItemRewardsSubText:SetJustifyH("LEFT")
+	ShowItemRewardsSubText:SetJustifyV("TOP")
+	ShowItemRewardsSubText:SetText(L.ShowItemRewards_Desc)
+
+	local UseTimeOffsetCheckBox = CreateFrame("CheckButton", "$parentUseTimeOffset", panel, "InterfaceOptionsCheckButtonTemplate")
+	UseTimeOffsetCheckBox:SetPoint("TOPLEFT", ShowItemRewardsSubText, -4, -26)
+	UseTimeOffsetCheckBox.Text:SetText(NORMAL_FONT_COLOR_CODE .. L.EnableUseTimeOffset .. FONT_COLOR_CODE_CLOSE)
+	UseTimeOffsetCheckBox.tooltipText = L.UseTimeOffset_Tip
+	UseTimeOffsetCheckBox:SetScript("OnClick", function(this)
+		local checked = not not this:GetChecked()
+		PlaySound(checked and SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON or SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_OFF)
+		db.UseTimeOffset = checked
+
+		if DEBUG then Debug("C: UseTimeOffset", db.UseTimeOffset, checked) end
+	end)
+
+	local UseTimeOffsetSubText = CPanel:CreateFontString("$parentSubText6", "ARTWORK", "GameFontHighlightSmall")
+	UseTimeOffsetSubText:SetPoint("TOPLEFT", UseTimeOffsetCheckBox, "BOTTOMLEFT", 4, -8)
+	UseTimeOffsetSubText:SetJustifyH("LEFT")
+	UseTimeOffsetSubText:SetJustifyV("TOP")
+	UseTimeOffsetSubText:SetText(L.UseTimeOffset_Desc)
+
+	--------------------------------------------------------------------
+
 	function panel:Refresh()
 		AutoBuyCheckBox:SetChecked(db.AutoBuy)
-		LowSkillCheckBox:SetChecked(db.HideLow)
+		--LowSkillCheckBox:SetChecked(db.HideLow)
 		HighSkillCheckBox:SetChecked(db.HideMax)
 
 		PetBattleCheckBox:SetChecked(db.PetBattle)
 		DeathMetalKnightChechBox:SetChecked(db.DeathMetalKnight)
 		TestYourStrengthCheckBox:SetChecked(db.TestYourStrength)
 		FadedTreasureMapCheckBox:SetChecked(db.FadedTreasureMap)
+
+		ShowItemRewardsCheckBox:SetChecked(db.ShowItemRewards)
+		UseTimeOffsetCheckBox:SetChecked(db.UseTimeOffset)
 		
 		XSlider:SetValue(db.XPos)
 		YSlider:SetValue(db.YPos)
