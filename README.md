@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.com/ahakola/DMFQuest.svg?branch=master)](https://travis-ci.com/ahakola/DMFQuest)
+![Release](https://github.com/ahakola/DMFQuest/actions/workflows/release.yml/badge.svg)
 
 # DMF Quest
 
