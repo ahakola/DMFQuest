@@ -119,9 +119,9 @@ local DEBUG = true
 local function Debug(text, ...)
 	if text then
 		if text:match("%%[dfqsx%d%.]") then
-			(DEBUG_CHAT_FRAME or ChatFrame3):AddMessage("|cffff9999"..ADDON_NAME..":|r " .. format(text, ...))
+			(DEBUG_CHAT_FRAME or (ChatFrame3:IsShown() and ChatFrame3 or ChatFrame4)):AddMessage("|cffff9999"..ADDON_NAME..":|r " .. format(text, ...))
 		else
-			(DEBUG_CHAT_FRAME or ChatFrame3):AddMessage("|cffff9999"..ADDON_NAME..":|r " .. strjoin(" ", text, tostringall(...)))
+			(DEBUG_CHAT_FRAME or (ChatFrame3:IsShown() and ChatFrame3 or ChatFrame4)):AddMessage("|cffff9999"..ADDON_NAME..":|r " .. strjoin(" ", text, tostringall(...)))
 		end
 	end
 end
@@ -542,7 +542,7 @@ function f:UpdateItems() -- Keep track of turnInItems
 		end
 	end
 
-	rewardsTable = {
+	local rewardsTable = {
 		[71635] = 10, --Imbued Crystal
 		[71636] = 10, --Monstrous Egg
 		[71637] = 10, --Mysterious Grimoire
@@ -647,6 +647,78 @@ function f:UpdateProfession(which, id) -- Keep track of Player Professions
 		-- The player knows this profession!
 		local name, icon, skillLevel, maxSkillLevel, _, _, skillLine = GetProfessionInfo(id)
 
+		-- Trying to fix stuff for SL
+		if which < 3 then -- Archaeology (3), Fishing (4) and Cooking (5) need different approach because C_TradeSkillUI.GetTradeSkillLineInfoByID() doesn't return data for them
+			skillLevel, maxSkillLevel = 0, 0
+			--local _, _, maxSkillLevel = C_TradeSkillUI.GetTradeSkillLineInfoByID(skillLine) -- Returns wrong number for some reason?
+			for _, skillLineID in pairs(C_TradeSkillUI.GetAllProfessionTradeSkillLines()) do
+				local _, skillLineRank, skillLineMaxRank, _, parentSkillLineID = C_TradeSkillUI.GetTradeSkillLineInfoByID(skillLineID)
+
+				if parentSkillLineID == skillLine then
+					skillLevel = skillLevel + skillLineRank
+					maxSkillLevel = maxSkillLevel + skillLineMaxRank
+
+					if DEBUG then Debug("Prof: %d (%d / %d) - %d / %d - %d / %d", which, id, skillLineID, skillLevel, maxSkillLevel, skillLineRank, skillLineMaxRank) end -- Debug
+				end
+			end
+		elseif which > 3 then -- Archaeology is just fine as it is, Fishing and Cooking needs hacking
+			if DEBUG then Debug("->", which, id, (GetProfessionInfo(id))) end -- Debug
+			
+			local skillLineCurrentLevel, skillLineMaxLevel = 0, 0
+			local fishingLines = {
+				1100, -- Fishing 300
+				1102, -- Outland Fishing 75
+				1104, -- Northrend Fishing 75
+				1106, -- Cataclysm Fishing 75
+				1108, -- Pandaria Fishing 75
+				1110, -- Draenor Fishing 100
+				1112, -- Legion Fishing 100
+				1114, -- Kul Tiran Fishing 175
+				1391 -- Shadowlands Fishing 200
+			}
+			local cookingLines = {
+				72, -- Old World Recipes 300
+				73, -- Outlandish Dishes 75
+				74, -- Recipes of the Cold North 75
+				75, -- Cataclysm Recipes 75
+				90, -- Pandaren Cuisine 75
+				342, -- Food of Draenor 100
+				475, -- Food of the Broken Isles 100
+				1118, -- Kul Tiran Cuisine 175
+				1323 -- Shadowlands Cuisine 75
+			}
+
+			-- Can't get data for both Fishing and Cooking without changing the OpenTradeSkill.
+			-- The data isn't available instantly after changing so can't get both during login and
+			-- if the player has TradeSkillUI open during normal play when this update is called,
+			-- it will first change and then close asap after.
+			-- I'll leave this one out for now (until I can figure out better way to do this).
+
+			--C_TradeSkillUI.OpenTradeSkill(skillLine)
+
+			--[[
+			local tblRef = (which == 4) and fishingLines or cookingLines
+			for i = 1, #tblRef do
+				local categoryID = tblRef[i]
+				local categoryData = C_TradeSkillUI.GetCategoryInfo(categoryID)
+
+				if categoryData and categoryData.enabled then
+					skillLineCurrentLevel = skillLineCurrentLevel + categoryData.skillLineCurrentLevel
+					skillLineMaxLevel = skillLineMaxLevel + categoryData.skillLineMaxLevel
+
+					if DEBUG then Debug(" --> %d (%s) - %d / %d - %d / %d", categoryID, categoryData.name, skillLineCurrentLevel, skillLineMaxLevel, categoryData.skillLineCurrentLevel, categoryData.skillLineMaxLevel) end -- Debug
+				end
+			end
+			]]
+
+			--C_TradeSkillUI.CloseTradeSkill()
+
+			if skillLineMaxLevel > 0 then
+				skillLevel = skillLineCurrentLevel
+				maxSkillLevel = skillLineMaxLevel
+			end
+		end
+
 		-- Update the profession data
 		profession.name = name
 		profession.icon = icon
@@ -666,7 +738,7 @@ function f:UpdateProfession(which, id) -- Keep track of Player Professions
 	if DEBUG then Debug("- Update Profession:", which, profession.name) end -- Debug
 end
 
-function f:UpdateQuests() -- Keep track of Professions Quests status and item counts
+function f:UpdateQuests(retry) -- Keep track of Professions Quests status and item counts
 	local function Resize()
 		local height = 20 + 32 + 2 -- Title, Buttons, Top Marginal
 
@@ -765,6 +837,15 @@ function f:UpdateQuests() -- Keep track of Professions Quests status and item co
 					self.Strings[i]:SetText(format("%s\n%s%s|r", self.Strings[i]:GetText(), GREEN_FONT_COLOR_CODE, L.NoItemsNeeded))
 				end
 			else -- Skill under 75
+				if not retry and i < 6 then
+					local tmpTbl = { GetProfessions() }
+					self:UpdateProfession(i, tmpTbl[i])
+
+					if DEBUG then Debug("Retrying...") end -- Debug
+					self:UpdateQuests(true)
+					break
+				end
+
 				if db.HideLow then
 					self.Strings[i]:SetText(nil)
 					self.Lines[i]:Hide()
@@ -774,6 +855,15 @@ function f:UpdateQuests() -- Keep track of Professions Quests status and item co
 			end
 
 		else -- No profession
+			if not retry and i < 6 then
+				local tmpTbl = { GetProfessions() }
+				self:UpdateProfession(i, tmpTbl[i])
+
+				if DEBUG then Debug("Retrying...") end -- Debug
+				self:UpdateQuests(true)
+				break
+			end
+
 			self.Strings[i]:SetText(nil)
 			self.Lines[i]:Hide()
 		end
@@ -1026,12 +1116,11 @@ function eventFrame:ADDON_LOADED(_, addon)
 
 	db = DMFQConfig
 
+	self:RegisterEvent("SKILL_LINES_CHANGED") -- This is fired before PLAYER_LOGIN so it has to be Registered here
 	if IsLoggedIn() then
-		self:RegisterEvent("SKILL_LINES_CHANGED") -- This is fired before PLAYER_LOGIN so it has to be Registered here
 		self:SKILL_LINES_CHANGED()
 		self:PLAYER_LOGIN()
 	else
-		self:RegisterEvent("SKILL_LINES_CHANGED") -- This is fired before PLAYER_LOGIN so it has to be Registered here
 		self:RegisterEvent("PLAYER_LOGIN")
 	end
 
