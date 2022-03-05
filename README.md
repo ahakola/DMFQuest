@@ -49,7 +49,7 @@ Language | Translator(s)
 -------- | -------------
 German | Mistrahw, pas06
 French | Mad_Ti
-Korean | etaras
+Korean | netaras
 Russian | the_notorious_thug
 Traditional Chinese | sopgri
 
