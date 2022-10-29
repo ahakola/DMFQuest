@@ -555,15 +555,16 @@ function f:UpdateItems() -- Keep track of turnInItems
 		[105891] = 10 -- Moonfang's Pelt
 	}
 	local function showTip(frame, normalText, newbieText) -- Show Newbie Tooltip
-		--GameTooltip_AddNewbieTip(frame, normalText, 1, 1, 1, newbieText);
-		-- GameTooltip_AddNewbieTip deprecated in 8.2.5
+		GameTooltip:ClearLines()
 		GameTooltip:SetOwner(frame, "ANCHOR_RIGHT")
 		if db.ShowItemRewards then
 			local count = newbieText ~= nil and rewardsTable[newbieText] or "?"
-			GameTooltip_SetTitle(GameTooltip, normalText .. "\n\n" .. GARRISON_MISSION_REWARD_HEADER .. " |T134481:16:16:0:0:32:32:2:30:2:30|t " .. count .. " " .. ticketName)
+			GameTooltip:AddLine(normalText)
+			GameTooltip:AddLine(GARRISON_MISSION_REWARD_HEADER .. " |T134481:16:16:0:0:32:32:2:30:2:30|t " .. count .. " " .. ticketName)
 		else
-			GameTooltip_SetTitle(GameTooltip, normalText)
+			GameTooltip:AddLine(normalText)
 		end
+		GameTooltip:Show() -- Region:Show() resizes the tooltip and reapplies any anchor defined with SetOwner().
 	end
 
 	local function hideTip() -- Hide Newbie Tooltip
@@ -647,83 +648,78 @@ function f:UpdateProfession(which, id) -- Keep track of Player Professions
 		-- The player knows this profession!
 		local name, icon, skillLevel, maxSkillLevel, _, _, skillLine = GetProfessionInfo(id)
 
-		-- Trying to fix stuff for SL
+		-- Trying to fix stuff for SL and later
+		local skillLevelTemp, maxSkillLevelTemp = 0, 0
 		if which < 3 then -- Archaeology (3), Fishing (4) and Cooking (5) need different approach because C_TradeSkillUI.GetTradeSkillLineInfoByID() doesn't return data for them
-			skillLevel, maxSkillLevel = 0, 0
-			--local _, _, maxSkillLevel = C_TradeSkillUI.GetTradeSkillLineInfoByID(skillLine) -- Returns wrong number for some reason?
 			for _, skillLineID in pairs(C_TradeSkillUI.GetAllProfessionTradeSkillLines()) do
-				local _, skillLineRank, skillLineMaxRank, _, parentSkillLineID = C_TradeSkillUI.GetTradeSkillLineInfoByID(skillLineID)
+				local skillTable = C_TradeSkillUI.GetProfessionInfoBySkillLineID(skillLineID) -- skillLevel, professionID, skillModifier, parentProfessionName, parentProfessionID, profession, isPrimaryProfession, professionName, maxSkillLevel, expansionName
 
-				if parentSkillLineID == skillLine then
-					skillLevel = skillLevel + skillLineRank
-					maxSkillLevel = maxSkillLevel + skillLineMaxRank
+				if skillTable.parentProfessionID == skillLine then
+					skillLevelTemp = skillLevelTemp + skillTable.skillLevel
+					maxSkillLevelTemp = maxSkillLevelTemp + skillTable.maxSkillLevel
 
-					if DEBUG then Debug("Prof: %d (%d / %d) - %d / %d - %d / %d", which, id, skillLineID, skillLevel, maxSkillLevel, skillLineRank, skillLineMaxRank) end -- Debug
+					if skillTable.skillLevel and skillTable.skillLevel > 0 then
+						if DEBUG then Debug("Prof: %d (%d / %d) - %d / %d - %d / %d", which, id, skillLineID, skillLevelTemp, maxSkillLevelTemp, skillTable.skillLevel, skillTable.maxSkillLevel) end -- Debug
+					end
 				end
 			end
 		elseif which > 3 then -- Archaeology is just fine as it is, Fishing and Cooking needs hacking
 			if DEBUG then Debug("->", which, id, (GetProfessionInfo(id))) end -- Debug
-			
-			local skillLineCurrentLevel, skillLineMaxLevel = 0, 0
-			local fishingLines = {
-				1100, -- Fishing 300
-				1102, -- Outland Fishing 75
-				1104, -- Northrend Fishing 75
-				1106, -- Cataclysm Fishing 75
-				1108, -- Pandaria Fishing 75
-				1110, -- Draenor Fishing 100
-				1112, -- Legion Fishing 100
-				1114, -- Kul Tiran Fishing 175
-				1391 -- Shadowlands Fishing 200
+
+			local secondaryProfessionLines = {
+				-- Fishing
+					2592, -- Fishing 300
+					2591, -- Outland Fishing 75
+					2590, -- Northrend Fishing 75
+					2589, -- Cataclysm Fishing 75
+					2588, -- Pandaria Fishing 75
+					2587, -- Draenor Fishing 100
+					2586, -- Legion Fishing 100
+					2585, -- Kul Tiran Fishing 175
+					2754, -- Shadowlands Fishing 200
+					2826, -- Dragon Isles Fishing 100
+					-- Total 1275
+
+				-- Cooking
+					2548, -- Old World Recipes 300
+					2547, -- Outlandish Dishes 75
+					2546, -- Recipes of the Cold North 75
+					2545, -- Cataclysm Recipes 75
+					2544, -- Pandaren Cuisine 75
+					2543, -- Food of Draenor 100
+					2542, -- Food of the Broken Isles 100
+					2541, -- Kul Tiran Cuisine 175
+					2752, -- Shadowlands Cuisine 75
+					2824 -- Dragon Isles Cooking 100
+					-- Total 1150
 			}
-			local cookingLines = {
-				72, -- Old World Recipes 300
-				73, -- Outlandish Dishes 75
-				74, -- Recipes of the Cold North 75
-				75, -- Cataclysm Recipes 75
-				90, -- Pandaren Cuisine 75
-				342, -- Food of Draenor 100
-				475, -- Food of the Broken Isles 100
-				1118, -- Kul Tiran Cuisine 175
-				1323 -- Shadowlands Cuisine 75
-			}
 
-			-- Can't get data for both Fishing and Cooking without changing the OpenTradeSkill.
-			-- The data isn't available instantly after changing so can't get both during login and
-			-- if the player has TradeSkillUI open during normal play when this update is called,
-			-- it will first change and then close asap after.
-			-- I'll leave this one out for now (until I can figure out better way to do this).
+			for _, skillLineID in pairs(secondaryProfessionLines) do
+				local skillTable = C_TradeSkillUI.GetProfessionInfoBySkillLineID(skillLineID) -- skillLevel, professionID, skillModifier, parentProfessionName, parentProfessionID, profession, isPrimaryProfession, professionName, maxSkillLevel, expansionName
 
-			--C_TradeSkillUI.OpenTradeSkill(skillLine)
+				if skillTable.parentProfessionID == skillLine then
+					skillLevelTemp = skillLevelTemp + skillTable.skillLevel
+					maxSkillLevelTemp = maxSkillLevelTemp + skillTable.maxSkillLevel
 
-			--[[
-			local tblRef = (which == 4) and fishingLines or cookingLines
-			for i = 1, #tblRef do
-				local categoryID = tblRef[i]
-				local categoryData = C_TradeSkillUI.GetCategoryInfo(categoryID)
-
-				if categoryData and categoryData.enabled then
-					skillLineCurrentLevel = skillLineCurrentLevel + categoryData.skillLineCurrentLevel
-					skillLineMaxLevel = skillLineMaxLevel + categoryData.skillLineMaxLevel
-
-					if DEBUG then Debug(" --> %d (%s) - %d / %d - %d / %d", categoryID, categoryData.name, skillLineCurrentLevel, skillLineMaxLevel, categoryData.skillLineCurrentLevel, categoryData.skillLineMaxLevel) end -- Debug
+					if skillTable.skillLevel and skillTable.skillLevel > 0 then
+						if DEBUG then Debug("Prof: %d (%d / %d) - %d / %d - %d / %d", which, id, skillLineID, skillLevelTemp, maxSkillLevelTemp, skillTable.skillLevel, skillTable.maxSkillLevel) end -- Debug
+					end
 				end
 			end
-			]]
-
-			--C_TradeSkillUI.CloseTradeSkill()
-
-			if skillLineMaxLevel > 0 then
-				skillLevel = skillLineCurrentLevel
-				maxSkillLevel = skillLineMaxLevel
-			end
 		end
+
+		local finalSkillLevel = skillLevelTemp > 0 and skillLevelTemp or skillLevel
+		local finalMaxSkillLevel = maxSkillLevelTemp > 0 and maxSkillLevelTemp or maxSkillLevel
 
 		-- Update the profession data
 		profession.name = name
 		profession.icon = icon
-		profession.skillLevel = skillLevel
-		profession.maxSkillLevel = maxSkillLevel
+		if profession.skillLevel == nil or finalSkillLevel > profession.skillLevel then
+			profession.skillLevel = finalSkillLevel
+		end
+		if profession.maxSkillLevel == nil or finalMaxSkillLevel > profession.maxSkillLevel then
+			profession.maxSkillLevel = finalMaxSkillLevel
+		end
 		profession.id = skillLine
 	else
 		-- The player does not know this profession.
@@ -735,7 +731,7 @@ function f:UpdateProfession(which, id) -- Keep track of Player Professions
 		profession.id = nil
 	end
 
-	if DEBUG then Debug("- Update Profession:", which, profession.name) end -- Debug
+	if DEBUG then Debug("- Update Profession:", which, profession.name, id) end -- Debug
 end
 
 function f:UpdateQuests(retry) -- Keep track of Professions Quests status and item counts
@@ -837,13 +833,13 @@ function f:UpdateQuests(retry) -- Keep track of Professions Quests status and it
 					self.Strings[i]:SetText(format("%s\n%s%s|r", self.Strings[i]:GetText(), GREEN_FONT_COLOR_CODE, L.NoItemsNeeded))
 				end
 			else -- Skill under 75
+				local tmpTbl = { GetProfessions() }
 				if not retry and i < 6 then
-					local tmpTbl = { GetProfessions() }
 					self:UpdateProfession(i, tmpTbl[i])
 
 					if DEBUG then Debug("Retrying...") end -- Debug
 					self:UpdateQuests(true)
-					break
+					--break
 				end
 
 				if db.HideLow then
@@ -1135,6 +1131,7 @@ function eventFrame:PLAYER_LOGIN()
 	self:RegisterEvent("ZONE_CHANGED_INDOORS")
 	self:RegisterEvent("PLAYER_ENTERING_WORLD")
 	self:RegisterEvent("QUEST_LOG_UPDATE") -- Will fire after reload ui or on normal login
+	self:RegisterEvent("TRADE_SKILL_LIST_UPDATE") -- We don't get all the information at once anymore, so request update when we open any of the TradeSkillUIs
 
 	-- Check DB items and try to Pre-cache these if not found
 	local _ = f:GetItemName(1645, true) -- Moonberry Juice
@@ -1252,6 +1249,10 @@ function eventFrame:SKILL_LINES_CHANGED()
 	end
 end
 
+function eventFrame:TRADE_SKILL_LIST_UPDATE() -- We are getting information from opening one of the profession TradeSkillUIs
+	self:SKILL_LINES_CHANGED()
+end
+
 --[[function eventFrame:MERCHANT_SHOW()
 	-- Buy items only during DMF and when Frame is visible, except when it is DMF and you are on quest A Fizzy Fusion (Alchemy)
 	--f:Print("CheckDMF: %s, IsShown: %s, GetQuestLogIndexByID: %d", tostring(f:CheckDMF()), tostring(f:IsShown()), tonumber(GetQuestLogIndexByID(29506)))
@@ -1335,7 +1336,7 @@ panel:SetScript("OnShow", function()
 		label:SetText(labelText)
 		frame.labelText = label
 
-		frame:SetSize(floor(InterfaceOptionsFramePanelContainer:GetWidth() - 32), 50)
+		frame:SetSize(floor(SettingsPanel.Container.SettingsCanvas:GetWidth() - 32), 50)
 
 		return frame
 	end
@@ -1452,7 +1453,6 @@ panel:SetScript("OnShow", function()
 	Xm:SetPoint("RIGHT", XSlider, "LEFT")
 	Xm:SetWidth(Xm:GetHeight())
 	Xm:SetScript("OnClick", function(self, button)
-		--PlaySound("gsTitleOptionOK")
 		PlaySound(SOUNDKIT.GS_TITLE_OPTION_OK)
 
 		db.XPos = floor(db.XPos - 1)
@@ -1469,7 +1469,6 @@ panel:SetScript("OnShow", function()
 	Xp:SetPoint("LEFT", XSlider, "RIGHT")
 	Xp:SetWidth(Xp:GetHeight())
 	Xp:SetScript("OnClick", function(self, button)
-		--PlaySound("gsTitleOptionOK")
 		PlaySound(SOUNDKIT.GS_TITLE_OPTION_OK)
 
 		db.XPos = floor(db.XPos + 1)
@@ -1486,7 +1485,6 @@ panel:SetScript("OnShow", function()
 	Ym:SetPoint("RIGHT", YSlider, "LEFT")
 	Ym:SetWidth(Ym:GetHeight())
 	Ym:SetScript("OnClick", function(self, button)
-		--PlaySound("gsTitleOptionOK")
 		PlaySound(SOUNDKIT.GS_TITLE_OPTION_OK)
 
 		db.YPos = floor(db.YPos - 1)
@@ -1503,7 +1501,6 @@ panel:SetScript("OnShow", function()
 	Yp:SetPoint("LEFT", YSlider, "RIGHT")
 	Yp:SetWidth(Yp:GetHeight())
 	Yp:SetScript("OnClick", function(self, button)
-		--PlaySound("gsTitleOptionOK")
 		PlaySound(SOUNDKIT.GS_TITLE_OPTION_OK)
 
 		db.YPos = floor(db.YPos + 1)
@@ -1520,7 +1517,6 @@ panel:SetScript("OnShow", function()
 	ResetPos:SetPoint("CENTER", SPanel, 0, 9)
 	ResetPos:SetWidth(ResetPos:GetFontString():GetStringWidth() + 24)
 	ResetPos:SetScript("OnClick", function(self, button)
-		--PlaySound("gsTitleOptionOK")
 		PlaySound(SOUNDKIT.GS_TITLE_OPTION_OK)
 
 		db.XPos = 275
@@ -1557,7 +1553,6 @@ panel:SetScript("OnShow", function()
 	AutoBuyCheckBox.tooltipText = L.Enable_Tip
 	AutoBuyCheckBox:SetScript("OnClick", function(this)
 		local checked = not not this:GetChecked()
-		--PlaySound(checked and "igMainMenuOptionCheckBoxOn" or "igMainmenuOptionCheckBoxOff")
 		PlaySound(checked and SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON or SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_OFF)
 		db.AutoBuy = checked
 
@@ -1588,7 +1583,6 @@ panel:SetScript("OnShow", function()
 	LowSkillCheckBox.tooltipText = L.HideLow_Tip
 	LowSkillCheckBox:SetScript("OnClick", function(this)
 		local checked = not not this:GetChecked()
-		--PlaySound(checked and "igMainMenuOptionCheckBoxOn" or "igMainmenuOptionCheckBoxOff")
 		PlaySound(checked and SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON or SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_OFF)
 		db.HideLow = checked
 
@@ -1611,7 +1605,6 @@ panel:SetScript("OnShow", function()
 	HighSkillCheckBox.tooltipText = L.HideMax_Tip
 	HighSkillCheckBox:SetScript("OnClick", function(this)
 		local checked = not not this:GetChecked()
-		--PlaySound(checked and "igMainMenuOptionCheckBoxOn" or "igMainmenuOptionCheckBoxOff")
 		PlaySound(checked and SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON or SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_OFF)
 		db.HideMax = checked
 
@@ -1634,7 +1627,6 @@ panel:SetScript("OnShow", function()
 	PetBattleCheckBox.tooltipText = L.PetBattle_Tip
 	PetBattleCheckBox:SetScript("OnClick", function(this)
 		local checked = not not this:GetChecked()
-		--PlaySound(checked and "igMainMenuOptionCheckBoxOn" or "igMainmenuOptionCheckBoxOff")
 		PlaySound(checked and SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON or SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_OFF)
 		db.PetBattle = checked
 
@@ -1650,7 +1642,6 @@ panel:SetScript("OnShow", function()
 	DeathMetalKnightChechBox.tooltipText = L.DeathMetalKnight_Tip
 	DeathMetalKnightChechBox:SetScript("OnClick", function(this)
 		local checked = not not this:GetChecked()
-		--PlaySound(checked and "igMainMenuOptionCheckBoxOn" or "igMainmenuOptionCheckBoxOff")
 		PlaySound(checked and SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON or SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_OFF)
 		db.DeathMetalKnight = checked
 
@@ -1666,7 +1657,6 @@ panel:SetScript("OnShow", function()
 	TestYourStrengthCheckBox.tooltipText = L.TestYourStrength_Tip
 	TestYourStrengthCheckBox:SetScript("OnClick", function(this)
 		local checked = not not this:GetChecked()
-		--PlaySound(checked and "igMainMenuOptionCheckBoxOn" or "igMainmenuOptionCheckBoxOff")
 		PlaySound(checked and SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON or SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_OFF)
 		db.TestYourStrength = checked
 
@@ -1682,7 +1672,6 @@ panel:SetScript("OnShow", function()
 	FadedTreasureMapCheckBox.tooltipText = L.FadedTreasureMap_Tip
 	FadedTreasureMapCheckBox:SetScript("OnClick", function(this)
 		local checked = not not this:GetChecked()
-		--PlaySound(checked and "igMainMenuOptionCheckBoxOn" or "igMainmenuOptionCheckBoxOff")
 		PlaySound(checked and SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON or SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_OFF)
 		db.FadedTreasureMap = checked
 
