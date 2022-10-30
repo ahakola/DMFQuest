@@ -211,7 +211,7 @@ function f:CreateUI() -- Creates UI elements
 		f:ClearAllPoints()
 		f:SetPoint("BOTTOMLEFT", db.XPos, db.YPos) -- Make sure the frame is relative to BOTTOMLEFT
 
-		if InterfaceOptionsFrame:IsShown() then
+		if SettingsPanel:IsShown() then
 			panel.Refresh()
 		end
 	end)
@@ -1032,10 +1032,10 @@ SlashCmdList.DMFQUEST = function(arg)
 	local arg = arg:trim()
 	if arg and arg ~= "" then -- arg
 		if arg == "config" then
-			if not InterfaceOptionsFrame:IsShown() then
+			if not SettingsPanel:IsShown() then
 				-- Open Config
 				f:Print(L.OpenConfig)
-				InterfaceOptionsFrame_OpenToCategory(ADDON_NAME)
+				Settings.OpenToCategory(ADDON_NAME)
 			end
 		elseif arg == "pin" then
 			-- Change Pin status
@@ -1311,7 +1311,7 @@ end
 -------------------------------------------------------------------------------
 -- DMFQuest Config
 -------------------------------------------------------------------------------
-panel = CreateFrame("Frame", ADDON_NAME.."Options", InterfaceOptionsFramePanelContainer)
+panel = CreateFrame("Frame", ADDON_NAME.."Options", SettingsPanel)
 panel.name = ADDON_NAME
 InterfaceOptions_AddCategory(panel)
 panel:Hide()
