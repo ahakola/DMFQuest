@@ -534,8 +534,8 @@ function f:UpdateItems() -- Keep track of turnInItems
 	local function getSlot(id) --Returns location of an item in your backbags
 		local bag, slot = 0, 0
 		for bag = 0, NUM_BAG_SLOTS do
-			for slot = 1, GetContainerNumSlots(bag) do
-				if GetContainerItemID(bag, slot) == id then
+			for slot = 1, C_Container.GetContainerNumSlots(bag) do
+				if C_Container.GetContainerItemID(bag, slot) == id then
 					return bag, slot
 				end
 			end
@@ -621,7 +621,7 @@ function f:UpdateItems() -- Keep track of turnInItems
 			else -- Item, no quest
 				self.Buttons[i]:SetScript("OnClick", function(self)
 					if not InCombatLockdown() then
-						UseContainerItem(getSlot(itemID))
+						C_Container.UseContainerItem(getSlot(itemID))
 					end
 				end)
 				self.Buttons[i]:SetScript("OnEnter", function(self)
