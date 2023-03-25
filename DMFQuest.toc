@@ -1,4 +1,4 @@
-## Interface: 100005
+## Interface: 100007
 ## Author: Kelzu (Stormreaver EU)
 ## Title: |cff8d00d1DMF|rQuest
 ## Version: @project-version@
