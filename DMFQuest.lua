@@ -324,7 +324,7 @@ function f:CheckDMF() -- Check if DMF is available
 
 	for i = 1, C_Calendar.GetNumDayEvents(0, day) do
 		local holidayData = C_Calendar.GetHolidayInfo(0, day, i)
-		local texture = holidayData.texture
+		local texture = holidayData and holidayData.texture or 0 -- Add safety check for existence of holidayData to prevent CF issue #6 (reported by Harai_Ulfsark) happening again
 		--if texture == "calendar_darkmoonfaireterokkar" then
 		if texture == 235448 or texture == 235447 or texture == 235446 then -- DMF begin, go on, end
 			--return true
