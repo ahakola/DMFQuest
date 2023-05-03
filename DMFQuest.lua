@@ -1383,7 +1383,7 @@ panel:SetScript("OnShow", function()
 
 	local Title = panel:CreateFontString("$parentTitle", "ARTWORK", "GameFontNormalLarge")
 	Title:SetPoint("TOPLEFT", 16, -16)
-	Title:SetText(ADDON_NAME.." "..GetAddOnMetadata(ADDON_NAME, "Version"))
+	Title:SetText(ADDON_NAME.." "..C_AddOns.GetAddOnMetadata(ADDON_NAME, "Version"))
 
 	local SubText = panel:CreateFontString("$parentSubText", "ARTWORK", "GameFontHighlightSmall")
 	SubText:SetPoint("TOPLEFT", Title, "BOTTOMLEFT", 0, -8)
@@ -1391,7 +1391,7 @@ panel:SetScript("OnShow", function()
 	SubText:SetHeight(32)
 	SubText:SetJustifyH("LEFT")
 	SubText:SetJustifyV("TOP")
-	SubText:SetText(GetAddOnMetadata(ADDON_NAME, "Notes"))
+	SubText:SetText(C_AddOns.GetAddOnMetadata(ADDON_NAME, "Notes"))
 
 	--------------------------------------------------------------------
 
