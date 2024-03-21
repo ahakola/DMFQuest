@@ -14,7 +14,15 @@
 ## Notes-zhCN: @localization(locale="zhCN", key="Notes", namespace="TOC")@
 ## Notes-zhTW: @localization(locale="zhTW", key="Notes", namespace="TOC")@
 ## SavedVariables: DMFQConfig
+## OptionalDeps: Ace3
 
+#@no-lib-strip@
+LibStub/LibStub.lua
+AceGUI-3.0/AceGUI-3.0.xml
+AceConsole-3.0/AceConsole-3.0.xml
+AceConfig-3.0/AceConfig-3.0.xml
+#@end-no-lib-strip@
+
+ForceLoadTradeSkillData.lua
 Localization.lua
-Zones.lua
 DMFQuest.lua

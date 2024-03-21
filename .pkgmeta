@@ -2,7 +2,20 @@ package-as: DMFQuest
 
 license-output: LICENSE.txt
 
+externals:
+    LibStub:
+        url: https://repos.wowace.com/wow/libstub/trunk
+        tag: latest
+    AceConfig-3.0:
+        url: https://repos.wowace.com/wow/ace3/trunk/AceConfig-3.0
+        tag: latest
+    AceConsole-3.0:
+        url: https://repos.wowace.com/wow/ace3/trunk/AceConsole-3.0
+        tag: latest
+    AceGUI-3.0:
+        url: https://repos.wowace.com/wow/ace3/trunk/AceGUI-3.0
+        tag: latest
+
 ignore:
     - LICENSE.md
     - README.md
-    - .travis.yml

@@ -1,1754 +1,1944 @@
--------------------------------------------------------------------------------
--- DMFQuest
--------------------------------------------------------------------------------
-local ADDON_NAME, ns = ...
-local L = ns.L -- Localization table
-local B = ns.B -- Localized Zone Names table
-
-local db, firstRunDone, pinIt, ticker, panel
-local skillCap = PROFESSION_RANKS[#PROFESSION_RANKS][1] or 75
-local hx = 0.36846119165421
-local hy = 0.35865038633347
-
-local f = CreateFrame("Frame", ADDON_NAME.."Frame", _G.UIParent)
-local eventFrame = CreateFrame("Frame")
-eventFrame:RegisterEvent("ADDON_LOADED")
-
-local turnInItems = { -- Quests and Quest items
-	[29443] = 71635, --Imbued Crystal
-	[29464] = 71716, --Soothsayer's Runes
-	[29446] = 71638, --Ornate Weapon
-	[29451] = 71715, --A Treatise on Strategy
-	[29444] = 71636, --Monstrous Egg
-	[29445] = 71637, --Mysterious Grimoire
-	[29457] = 71952, --Captured Insignia
-	[29456] = 71951, --Banner of the Fallen
-	[29458] = 71953, --Fallen Adventurer's Journal
-	[33354] = 105891 -- Moonfang's Pelt
-}
-
-local ProfIDs = {
-	[794] = { -- Archaeology
-				["quest"] = 29507,
-				["currency"] = {
-					[393] = 15 -- Fossil Archaeology Fragment
-				}
-			},
-	[171] = { -- Alchemy
-				["quest"] = 29506,
-				["items"] = {
-					[1645] = 5, -- Moonberry Juice
-					[19299] = 5 -- Fizzy Faire Drink
-				}
-			},
-	[164] = { -- Blacksmithing
-				["quest"] = 29508
-			},
-	[185] = { -- Cooking
-				["quest"] = 29509,
-				["items"] = {
-					[30817] = 5 -- Simple Flour
-				}
-			},
-	[333] = { -- Enchanting
-				["quest"] = 29510
-			},
-	[202] = { -- Engineering
-				["quest"] = 29511
-			},
-	[129] = { -- FirstAid
-				["quest"] = 29512
-			},
-	[356] = { -- Fishing
-				["quest"] = 29513
-			},
-	[182] = { -- Herbalism
-				["quest"] = 29514
-			},
-	[773] = { -- Inscription
-				["quest"] = 29515,
-				["items"] = {
-					[39354] = 5 -- Light Parchment
-				}
-			},
-	[755] = { -- Jewelcrafting
-				["quest"] = 29516
-			},
-	[165] = { -- Leatherworking
-				["quest"] = 29517,
-				["items"] = {
-					[6529] = 10, -- Shiny Bauble
-					[2320] = 5, -- Coarse Thread
-					[6260] = 5 -- Blue Dye
-				}
-			},
-	[186] = { -- Mining
-				["quest"] = 29518
-			},
-	[393] = { -- Skinning
-				["quest"] = 29519
-			},
-	[197] = { -- Tailoring
-				["quest"] = 29520,
-				["items"] = {
-					[2320] = 1, -- Coarse Thread
-					[6260] = 1, -- Blue Dye
-					[2604] = 1 -- Red Dye
-				}
-			}
-}
-
-local PRIMARY, SECONDARY, ARCHAEOLOGY, FISHING, COOKING, FIRSTAID = 1, 2, 3, 4, 5, 6
-local ProfData = {
-	[PRIMARY] = {},
-	[SECONDARY] = {},
-	[ARCHAEOLOGY] = {},
-	[FISHING] = {},
-	[COOKING] = {},
-	[FIRSTAID] = {}
-}
-
-
--------------------------------------------------------------------------------
--- DMFQuest Debug
--------------------------------------------------------------------------------
---@debug@
-local DEBUG = true
---@end-debug@
-
-local function Debug(text, ...)
-	if text then
-		if text:match("%%[dfqsx%d%.]") then
-			(DEBUG_CHAT_FRAME or (ChatFrame3:IsShown() and ChatFrame3 or ChatFrame4)):AddMessage("|cffff9999"..ADDON_NAME..":|r " .. format(text, ...))
-		else
-			(DEBUG_CHAT_FRAME or (ChatFrame3:IsShown() and ChatFrame3 or ChatFrame4)):AddMessage("|cffff9999"..ADDON_NAME..":|r " .. strjoin(" ", text, tostringall(...)))
-		end
-	end
-end
-
-function f:Print(text, ...)
-	if text then
-		if text:match("%%[dfqs%d%.]") then
-			DEFAULT_CHAT_FRAME:AddMessage("|cffffcc00".. ADDON_NAME ..":|r " .. format(text, ...))
-		else
-			DEFAULT_CHAT_FRAME:AddMessage("|cffffcc00".. ADDON_NAME ..":|r " .. strjoin(" ", text, tostringall(...)))
-		end
-	end
-end
-
-
--------------------------------------------------------------------------------
--- DMFQuest Functions
--------------------------------------------------------------------------------
-function f:CreateUI() -- Creates UI elements
-	local function _buttonFactory() -- Create Item Buttons
-		local button = CreateFrame("Button", nil, f)
-		button:SetSize(32, 32)
-
-		button:SetScript("OnEnter", function(self)
-			self.texture:SetVertexColor(0.75, 0.75, 0.75)
-		end)
-
-		button:SetScript("OnLeave", function(self)
-			self.texture:SetVertexColor(1, 1, 1)
-		end)
-
-		local icon = button:CreateTexture()
-		icon:SetAllPoints()
-		button.texture = icon
-
-		return button
-	end
-
-	local buttonCount = 0
-	for _ in pairs(turnInItems) do
-		buttonCount = buttonCount + 1
-	end
-
-	local frameWidth = (buttonCount * 32) or 320
-	self:SetSize(frameWidth, 140)
-	--self:SetPoint("CENTER", _G.UIParent, "CENTER")
-	self:SetPoint("BOTTOMLEFT", _G.UIParent, db.XPos, db.YPos)
-	self:SetFrameStrata("DIALOG")
-	self:EnableMouse(true)
-	self:SetMovable(true)
-
-	local title_bg = self:CreateTexture(nil, "BACKGROUND")
-	title_bg:SetTexture([[Interface\PaperDollInfoFrame\UI-GearManager-Title-Background]])
-	title_bg:SetPoint("TOPLEFT")
-	title_bg:SetPoint("BOTTOMRIGHT", f, "TOPRIGHT", 0, -20)
-
-	local dialog_bg = self:CreateTexture(nil, "BACKGROUND")
-	dialog_bg:SetTexture([[Interface\Tooltips\UI-Tooltip-Background]])
-	dialog_bg:SetVertexColor(0, 0, 0, 0.75)
-	dialog_bg:SetPoint("TOPLEFT", 0, -20)
-	dialog_bg:SetPoint("BOTTOMRIGHT")
-
-	local title = self:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-	title:SetPoint("TOPLEFT", 32, -5)
-	title:SetPoint("TOPRIGHT", -32, -5)
-	title:SetText(ADDON_NAME)
-
-	self.title = title
-
-	local drag_frame = CreateFrame("Frame", nil, f)
-	drag_frame:SetPoint("TOPLEFT", title)
-	drag_frame:SetPoint("BOTTOMRIGHT", title)
-	drag_frame:EnableMouse(true)
-
-	drag_frame:SetScript("OnMouseDown", function(self, button)
-		f:StartMoving()
-	end)
-
-	drag_frame:SetScript("OnMouseUp", function(self, button)
-		f:StopMovingOrSizing()
-
-		local x, y = f:GetLeft(), f:GetBottom()
-
-		db.XPos = x -- Save these to settings DB
-		db.YPos = y
-
-		f:ClearAllPoints()
-		f:SetPoint("BOTTOMLEFT", db.XPos, db.YPos) -- Make sure the frame is relative to BOTTOMLEFT
-
-		if SettingsPanel:IsShown() then
-			panel.Refresh()
-		end
-	end)
-
-	local close_button = CreateFrame("Button", nil, f, "UIPanelCloseButton")
-	close_button:SetSize(32, 32)
-	close_button:SetPoint("TOPRIGHT", 6, 6)
-
-	self.Strings = self.Strings or {}
-	self.Lines = self.Lines or {}
-	for i = 1, 10 do -- 7th is for Pet Battles, 8th is for Death Metal Knight and 9th is for Test Your Strenght and 10 is for Faded Treasure Map
-		self.Strings[i] = self:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-		if i == 1 then
-			self.Strings[i]:SetPoint("TOP", f, "TOP", 0, -22)
-		else
-			self.Strings[i]:SetPoint("TOP", self.Strings[i-1], "BOTTOM", 0, -4)
-		end
-		self.Strings[i]:SetText(i)
-
-		self.Lines[i] = self:CreateTexture()
-		self.Lines[i]:SetColorTexture(0.75, 0.75, 0.75, 0.5)
-		self.Lines[i]:SetSize(250, 1.2) -- (250, 1) for real, but hax to fix case where sometimes the scaling makes one of the lines disappear...
-		self.Lines[i]:SetPoint("BOTTOM", self.Strings[i], 0, -2)
-	end
-
-	self.Buttons = self.Buttons or {}
-	for i = 1, buttonCount do
-		self.Buttons[i] = _buttonFactory()
-		if i == 1 then
-			self.Buttons[i]:SetPoint("BOTTOMLEFT")
-		else
-			self.Buttons[i]:SetPoint("LEFT", self.Buttons[i-1], "RIGHT")
-		end
-		self.Buttons[i].texture:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
-	end
-
-	f:Hide()
-
-	self.CreateUI = nil
-end
-
-function f:CheckDB() -- Check SavedVariables are okay and if not, replace them with defaults
-	if type(DMFQConfig) ~= "table" then DMFQConfig = {} end
-	if type(DMFQConfig.items) ~= "table" then DMFQConfig.items = {} end
-	if type(DMFQConfig.XPos) ~= "number" then DMFQConfig.XPos = 275 end
-	if type(DMFQConfig.YPos) ~= "number" then DMFQConfig.YPos = 275 end
-	if type(DMFQConfig.AutoBuy) ~= "boolean" then DMFQConfig.AutoBuy = true end
-	if type(DMFQConfig.HideLow) ~= "boolean" then DMFQConfig.HideLow = false end
-	if type(DMFQConfig.PetBattle) ~= "boolean" then DMFQConfig.PetBattle = false end
-	if type(DMFQConfig.HideMax) ~= "boolean" then DMFQConfig.HideMax = false end
-	if type(DMFQConfig.ShowItemRewards) ~= "boolean" then DMFQConfig.ShowItemRewards = false end
-	if type(DMFQConfig.UseTimeOffset) ~= "boolean" then DMFQConfig.UseTimeOffset = false end
-end
-
-function f:CheckDMF() -- Check if DMF is available
-	local timeData = C_DateAndTime.GetCurrentCalendarTime() -- C_Calendar.GetDate()
-	local hour, day, month, year = timeData.hour, timeData.monthDay, timeData.month, timeData.year
-	local result, openMonth, openYear
-	if CalendarFrame and CalendarFrame:IsShown() then -- Get current open month in calendar view
-		--openMonth, openYear = CalendarGetMonth()
-		local monthInfo = C_Calendar.GetMonthInfo()
-		openMonth, openYear = monthInfo.month, monthInfo.year
-	end
-
-	if db.UseTimeOffset then -- Try to fix OC-servers timeoffset for the starting time.
-		local daysInMonth = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 }
-		local realmHours, realmMinutes = GetGameTime()
-		local localTime = date('*t')
-		local serverTimeOffset = realmHours - localTime.hour
-		if timeData.monthDay > localTime.day then
-			serverTimeOffset = serverTimeOffset + 24
-		elseif timeData.monthDay < localTime.day then
-			serverTimeOffset = serverTimeOffset - 24
-		end
-
-		hour = hour - serverTimeOffset
-		if DEBUG then Debug("- Time offset:", serverTimeOffset) end -- Debug
-
-		-- Check if we went to another date with the offset
-		if hour < 0 then
-			day = day - 1
-			hour = hour + 24
-		elseif hour > 23 then
-			day = day + 1
-			hour = hour - 24
-		end
-		if day <= 0 then
-			month = month - 1
-			day = daysInMonth[month] or 31
-		elseif (daysInMonth[month] and day > daysInMonth[month]) then
-			month = month + 1
-			day = 1
-		end
-		if month <= 0 then
-			year = year - 1
-			month = 12
-		elseif month > 12 then
-			year = year + 1
-			month = 1
-		end
-	end
-
-	if not month then
-		if DEBUG then Debug("- No C_DateAndTime data") end -- Debug
-		return false
-	end
-
-	C_Calendar.SetAbsMonth(month, year)
-	if DEBUG then day = 8 end -- Debug
-
-	for i = 1, C_Calendar.GetNumDayEvents(0, day) do
-		local holidayData = C_Calendar.GetHolidayInfo(0, day, i)
-		local texture = holidayData and holidayData.texture or 0 -- Add safety check for existence of holidayData to prevent CF issue #6 (reported by Harai_Ulfsark) happening again
-		--if texture == "calendar_darkmoonfaireterokkar" then
-		if texture == 235448 or texture == 235447 or texture == 235446 then -- DMF begin, go on, end
-			--return true
-			result = true
-			break
-		end
-	end
-
-	if openMonth and openYear then -- Restore previously open month in calendar view
-		C_Calendar.SetAbsMonth(openMonth, openYear)
-	end
-
-	--return false
-	return result
-end
-
-local errorCount = 0
-function f:CheckPortalZone() -- Check if Player is near the DMF Portal or nearby Shopping area
-	local function distance(x, y, px, py) -- Calculate the distance between point A and point B
-		local dist = sqrt((x*100-px*100)^2+(y*100-py*100)^2) or 0
-		dist = math.floor(dist+0.5)
-		return dist
-	end
-
-	local function tickerCallback() -- Use this callback to get self to CheckPortalZone when fired by ticker
-		if DEBUG then Debug("-- Tick Tock End", errorCount, ticker, ticker["_cancelled"]) end -- Debug
-		ticker:Cancel()
-
-		if errorCount < 12 then -- If we have tried 12 times (once every 5secs for 1min), then give up
-			f:CheckPortalZone()
-		end
-	end
-
-	--local px, py = C_Map.GetPlayerMapPosition(C_Map.GetBestMapForUnit("player"), "player"):GetXY()
-	local uiMapID = C_Map.GetBestMapForUnit("player")
-	local px, py = 0, 0
-	if not uiMapID or type(uiMapID) ~= "number" then
-		if (type(ticker) == "table" and ticker["_cancelled"]) or ticker == nil then -- Throttle starting new timers
-			errorCount = errorCount + 1
-			ticker = C_Timer.NewTicker(5, tickerCallback)
-			if DEBUG then Debug("-- Tick Tock Start", errorCount, ticker, ticker["_cancelled"]) end -- Debug
-		end
-	else
-		errorCount = 0
-		local map = C_Map.GetPlayerMapPosition(uiMapID, "player")
-		if map then
-			px, py = map:GetXY()
-		end
-	end
-	--[[local px, py
-
-	if WorldMapFrame:IsShown() then
-		local viewing = GetCurrentMapAreaID()
-		SetMapToCurrentZone()
-		px, py = GetPlayerMapPosition("player")
-		SetMapByID(viewing)
-	else
-		SetMapToCurrentZone()
-		px, py = GetPlayerMapPosition("player")
-	end]]
-
-	if self:CheckDMF() then
-		self.title:SetText(format("%s - %s%s|r", ADDON_NAME, GREEN_FONT_COLOR_CODE, L.DMFAvailable))
-	else
-		self.title:SetText(format("%s", ADDON_NAME))
-	end
-
-	if pinIt then
-		f.title:SetText(format("%s - %s", f.title:GetText(), L.Pinned))
-	end
-
-	if UnitFactionGroup("player") == "Alliance" then
-		if (GetRealZoneText() == B["Elwynn Forest"] and GetSubZoneText() == B["Goldshire"]) or
-			(GetRealZoneText() == B["Elwynn Forest"] and GetSubZoneText() == B["Lion's Pride Inn"]) or
-			(GetRealZoneText() == B["Lion's Pride Inn"] and GetSubZoneText() == "") then
-			-- @ Portal Zone or shopping near
-			if DEBUG then Debug("-- Alliance @ Zone") end -- Debug
-			errorCount = 0
-
-			if self:CheckDMF() then -- @ Zone and DMF available
-				eventFrame:RegisterEvent("BAG_UPDATE")
-				eventFrame:RegisterEvent("QUEST_ACCEPTED")
-				eventFrame:RegisterEvent("QUEST_LOG_UPDATE")
-				eventFrame:RegisterEvent("MERCHANT_SHOW")
-				eventFrame:RegisterEvent("MERCHANT_UPDATE")
-				eventFrame:RegisterEvent("MERCHANT_FILTER_ITEM_UPDATE")
-				eventFrame:RegisterEvent("QUEST_DETAIL")
-
-				self:UpdateItems()
-				self:UpdateQuests()
-
-				if not self:IsShown() then
-					self:Show()
-				end
-			end
-
-			return true
-		else -- Not @ Zone
-			if self:IsShown() and not pinIt then -- If showing, hide
-				eventFrame:UnregisterEvent("BAG_UPDATE")
-				eventFrame:UnregisterEvent("QUEST_ACCEPTED")
-				eventFrame:UnregisterEvent("QUEST_LOG_UPDATE")
-				--eventFrame:UnregisterEvent("MERCHANT_SHOW")
-				eventFrame:UnregisterEvent("QUEST_DETAIL")
-
-				self:Hide()
-			end
-
-			return false
-		end
-	elseif UnitFactionGroup("player") == "Horde" then
-		if (GetRealZoneText() == B["Mulgore"] and GetSubZoneText() == "" and distance(hx, hy, px, py) <= 5) or
-			(GetRealZoneText() == B["Thunder Bluff"] and GetSubZoneText() == B["Thunder Bluff"]) or
-			(GetRealZoneText() == B["Thunder Bluff"] and GetSubZoneText() == B["The Cat and the Shaman"]) or
-			(GetRealZoneText() == B["The Cat and the Shaman"] and GetSubZoneText() == "") then
-			-- @ Portal Zone or shopping near
-			if DEBUG then Debug("-- Horde @ Zone", distance(hx, hy, px, py)) end -- Debug
-			errorCount = 0
-
-			if (type(ticker) == "table" and ticker["_cancelled"]) or ticker == nil then
-				if DEBUG then Debug("- Start Ticker by Portal") end -- Debug
-
-				ticker = C_Timer.NewTicker(5, tickerCallback)
-			end
-
-			if self:CheckDMF() then -- @ Zone and DMF available
-				eventFrame:RegisterEvent("BAG_UPDATE")
-				eventFrame:RegisterEvent("QUEST_ACCEPTED")
-				eventFrame:RegisterEvent("QUEST_LOG_UPDATE")
-				eventFrame:RegisterEvent("MERCHANT_SHOW")
-				eventFrame:RegisterEvent("MERCHANT_UPDATE")
-				eventFrame:RegisterEvent("MERCHANT_FILTER_ITEM_UPDATE")
-				eventFrame:RegisterEvent("QUEST_DETAIL")
-
-				self:UpdateItems()
-				self:UpdateQuests()
-
-				if not self:IsShown() then
-					self:Show()
-				end
-			end
-
-			return true
-		elseif (GetRealZoneText() == B["Mulgore"] and GetSubZoneText() == "") then
-			-- Not @ Portal Zone, but might be close?
-			if DEBUG then Debug("-- Horde !@ Zone", distance(hx, hy, px, py)) end -- Debug
-
-			if (type(ticker) == "table" and ticker["_cancelled"]) or ticker == nil then
-				if DEBUG then Debug("- Start Ticker by Zone") end -- Debug
-
-				ticker = C_Timer.NewTicker(5, tickerCallback)
-			end
-
-			if self:IsShown() and not pinIt then -- If showing, hide
-				eventFrame:UnregisterEvent("BAG_UPDATE")
-				eventFrame:UnregisterEvent("QUEST_ACCEPTED")
-				eventFrame:UnregisterEvent("QUEST_LOG_UPDATE")
-				--eventFrame:UnregisterEvent("MERCHANT_SHOW")
-				eventFrame:UnregisterEvent("QUEST_DETAIL")
-
-				self:Hide()
-			end
-
-			return false
-		else -- Not even close
-			if type(ticker) == "table" and not ticker["_cancelled"] then
-				if DEBUG then Debug("- Cancel Ticker by Zone") end -- Debug
-
-				ticker:Cancel()
-			end
-
-			if self:IsShown() and not pinIt then -- If showing, hide
-				eventFrame:UnregisterEvent("BAG_UPDATE")
-				eventFrame:UnregisterEvent("QUEST_ACCEPTED")
-				eventFrame:UnregisterEvent("QUEST_LOG_UPDATE")
-				--eventFrame:UnregisterEvent("MERCHANT_SHOW")
-				eventFrame:UnregisterEvent("QUEST_DETAIL")
-
-				self:Hide()
-			end
-
-			return false
-		end
-	end
-
-	return false -- For those Unfactioned Pandaren
-end
-
-local ticketName
-function f:UpdateItems() -- Keep track of turnInItems
-	local function findQuest(id) --Is Player on Quest?
-		--[[
-		local i = 1
-		while GetQuestLogTitle(i) do
-			local _, _, _, _, _, _, _, questID = GetQuestLogTitle(i)
-			if questID == id then
-				return true
-			end
-			i = i + 1
-		end
-
-		return false
-		]]
-		return C_QuestLog.IsOnQuest(id)
-	end
-
-	local function getSlot(id) --Returns location of an item in your backbags
-		local bag, slot = 0, 0
-		for bag = 0, NUM_BAG_SLOTS do
-			for slot = 1, C_Container.GetContainerNumSlots(bag) do
-				if C_Container.GetContainerItemID(bag, slot) == id then
-					return bag, slot
-				end
-			end
-		end
-	end
-
-	local rewardsTable = {
-		[71635] = 10, --Imbued Crystal
-		[71636] = 10, --Monstrous Egg
-		[71637] = 10, --Mysterious Grimoire
-		[71638] = 10, --Ornate Weapon
-		[71715] = 15, --A Treatise on Strategy
-		[71716] = 10, --Soothsayer's Runes
-		[71951] = 5, --Banner of the Fallen
-		[71952] = 5, --Captured Insignia
-		[71953] = 5, --Fallen Adventurer's Journal
-		[105891] = 10 -- Moonfang's Pelt
+--[[----------------------------------------------------------------------------
+	DMFQuest
+
+	Reminder tool for Darkmoon Faire crafting quest materials
+
+	Version 1.0:
+	- 2013 - 2014
+	- 5.1.0 - 6.0.3
+
+	Version 2.0:
+	- 2015 - 2024
+	- 6.0.3 - 10.2.5
+
+	Version 3.0:
+	- 2024 -
+	- 10.2.5 -
+----------------------------------------------------------------------------]]--
+	local ADDON_NAME, ns = ...
+	local L = ns.L -- Localization table
+
+	local db
+	local isFramePinned = false
+
+	-- GLOBALS: DMFQConfig, DEBUG_CHAT_FRAME
+
+	-- GLOBALS: GREEN_FONT_COLOR, ORANGE_FONT_COLOR, RED_FONT_COLOR
+
+	-- GLOBALS: BINDING_HEADER_DEBUG, CONFIRM_RESET_SETTINGS, GARRISON_MISSION_REWARD_HEADER, 
+	-- GLOBALS: HUD_EDIT_MODE_SETTING_AURA_FRAME_ICON_DIRECTION_DOWN,
+	-- GLOBALS: HUD_EDIT_MODE_SETTING_AURA_FRAME_ICON_DIRECTION_UP, MISCELLANEOUS, RESET_ALL_BUTTON_TEXT,
+	-- GLOBALS: RESET_TO_DEFAULT, SHOW_PET_BATTLES_ON_MAP_TEXT, TIMEMANAGER_TOOLTIP_REALMTIME
+
+	-- GLOBALS: C_AddOns, C_Calendar, C_Container, C_CurrencyInfo, C_DateAndTime, C_Map, C_MapExplorationInfo,
+	-- GLOBALS: C_QuestLog, C_Timer, C_TradeSkillUI, C_UI
+
+	-- GLOBALS: AcceptQuest, BuyMerchantItem, CalendarFrame, ChatFrame3, ChatFrame4, Constants, CreateFrame,
+	-- GLOBALS: DEFAULT_CHAT_FRAME, Enum, format, GameTooltip, GetBuildInfo, GetCoinText, GetItemCount,
+	-- GLOBALS: GetMerchantItemID, GetMerchantItemInfo, GetMerchantItemLink, GetMerchantItemMaxStack,
+	-- GLOBALS: GetMerchantNumItems, GetMinimapZoneText, GetMoney, GetProfessionInfo, GetProfessions, GetQuestID,
+	-- GLOBALS: GetQuestObjectiveInfo, InCombatLockdown, InterfaceOptionsFrame_OpenToCategory, ipairs, Item, math, next,
+	-- GLOBALS: pairs, PlaySound, PROFESSION_RANKS, Settings, SOUNDKIT, string, strjoin, strsplit, strtrim, time,
+	-- GLOBALS: tonumber, tostring, tostringall, type, UIParent, UnitPosition, unpack, wipe
+
+
+--[[----------------------------------------------------------------------------
+	Hard coded "data"
+----------------------------------------------------------------------------]]--
+	local minimumSkillRequired = 1 -- This used to be 75
+	local currentSkillCap = PROFESSION_RANKS[#PROFESSION_RANKS][1] or 75
+	local dbDefaults = {
+		-- Frame
+		XPos = 275,
+		YPos = 275,
+		FrameLock = false,
+		GrowDirection = 1, -- 0 = Down, 1 = Up
+		FrameVertexColor = { 1, 1, 1 }, -- UI shade
+		-- Features
+		AutoBuy = true,
+		HideLow = false,
+		HideMax = false,
+		-- Quests
+		PetBattle = true,
+		DeathMetalKnight = true,
+		TestYourStrength = true,
+		FadedTreasureMap = true,
+		ShowItemRewards = true,
+		-- Time Offset
+		UseTimeOffset = false,
+		TimeOffsetValue = 0,
+		-- Development and Debug
+		dbVersion = 1, -- In case we need to change things in the future
+		debug = false, -- Debug output
+		isPTR = false, -- Change some values on PTR only
 	}
-	local function showTip(frame, normalText, newbieText) -- Show Newbie Tooltip
+
+	-- Item Buttons
+		local itemButtonOrder = { -- [order] = questItemId
+			-- Dungeon
+				71635, -- Imbued Crystal
+				71636, -- Monstrous Egg
+				71637, -- Mysterious Grimoire
+				71638, -- Ornate Weapon
+			-- Heroic Dungeon
+				71715, -- A Treatise on Strategy
+			-- Raid
+				71716, -- Soothsayer's Runes
+			-- PvP
+				71951, -- Banner of the Fallen
+				71952, -- Captured Insignia
+				71953, -- Fallen Adventurer's Journal
+			-- Killing Moonfang
+				105891 -- Moonfang's Pelt
+		}
+		local buttonVertices = { -- SetVertexColor, rowIndex selected with button.itemStatus, 1-3 normal (onLeave), 4-6 highlight (onEnter)
+			-- Quest Completed (1)
+				{ 0, 1, 0, -- OnLeave
+				.75, 1, .75 }, -- OnEnter
+			-- On Quest (2)
+				{ 0, 1, 1, -- OnLeave
+				.75, 1, 1 }, -- OnEnter
+			-- Item, but no Quest (3)
+				{ 1, 1, 1, -- OnLeave
+				.75, .75, .75 }, -- OnEnter
+			-- No Item (4)
+				{ .3, .3, .3, -- OnLeave
+				.75, .75, .75 } -- OnEnter
+		}
+
+	-- Item Quests
+		local turnInItems = { -- [questItemId] = questId
+			-- Dungeon
+				[71635] = 29443, -- Imbued Crystal
+				[71636] = 29444, -- Monstrous Egg
+				[71637] = 29445, -- Mysterious Grimoire
+				[71638] = 29446, -- Ornate Weapon
+			-- Heroic Dungeon
+				[71715] = 29451, -- A Treatise on Strategy
+			-- Raid
+				[71716] = 29464, -- Soothsayer's Runes
+			-- PvP
+				[71951] = 29456, -- Banner of the Fallen
+				[71952] = 29457, -- Captured Insignia
+				[71953] = 29458, -- Fallen Adventurer's Journal
+			-- Killing Moonfang
+				[105891] = 33354 -- Moonfang's Pelt
+		}
+		local rewardsTable = { -- [questItemId] = # of [Darkmoon Prize Ticket] from completing the quest
+			-- Dungeon
+				[71635] = 10, -- Imbued Crystal
+				[71636] = 10, -- Monstrous Egg
+				[71637] = 10, -- Mysterious Grimoire
+				[71638] = 10, -- Ornate Weapon
+			-- Heroic Dungeon
+				[71715] = 15, -- A Treatise on Strategy
+			-- Raid
+				[71716] = 10, -- Soothsayer's Runes
+			-- PvP
+				[71951] = 5, -- Banner of the Fallen
+				[71952] = 5, -- Captured Insignia
+				[71953] = 5, -- Fallen Adventurer's Journal
+			-- Killing Moonfang
+				[105891] = 10 -- Moonfang's Pelt
+		}
+
+	-- Portal Areas
+		local subZoneAreaIDs = { -- uiMapIDs and their matching subZone areaIDs
+			--[[
+			-- https://wow.tools/dbc/?dbc=uimap
+			-- https://wow.tools/dbc/?dbc=areatable
+			[uiMapID] = {
+				areaID,
+				areaID,
+				areaID
+			}
+			]]--
+
+			-- Alliance
+			[37] = {	-- Elwynn Forrest
+				87,			-- Goldshire (Town)
+				5637		-- Lion's Pride Inn (Inn)
+			},
+			-- Horde
+			[7] = {		-- Mulgore
+				-- These both return Mulgore for GetMinimapZoneText() and empty string for GetSubZoneText()
+				-- Also the changing of GetMinimapZoneText() is kind of hit or miss depending on the direction you arrive to the Portal from
+				404,		-- Bael'dun Digsite (SW from Portal)
+				1638		-- Thunder Bluff (Next to the city, but not quite in it yet)
+			},
+			[88] = {	-- Thunder Bluff
+				1638,		-- Thunder Bluff (Central Rise)
+				1639,		-- Elder Rise (Eastern Rise)
+				1640,		-- Spirit Rise (Northern Rise)
+				1641,		-- Hunter Rise (Southern Rise)
+				8614		-- The Cat and the Shaman (Inn)
+			}
+		}
+
+	-- Professions
+		local ProfData = {} -- Save information about our Professions here
+		local ProfessionQuestData = {
+			-- Primary Professions
+				[171] = { -- Alchemy
+							questId = 29506,
+							questItems = {
+								[1645] = 5, -- Moonberry Juice
+								[19299] = 5 -- Fizzy Faire Drink
+							}
+						},
+				[164] = { -- Blacksmithing
+							questId = 29508
+						},
+				[333] = { -- Enchanting
+							questId = 29510
+						},
+				[202] = { -- Engineering
+							questId = 29511
+						},
+				[182] = { -- Herbalism
+							questId = 29514
+						},
+				[773] = { -- Inscription
+							questId = 29515,
+							questItems = {
+								[39354] = 5 -- Light Parchment
+							}
+						},
+				[755] = { -- Jewelcrafting
+							questId = 29516
+						},
+				[165] = { -- Leatherworking
+							questId = 29517,
+							questItems = {
+								[6529] = 10, -- Shiny Bauble
+								[2320] = 5, -- Coarse Thread
+								[6260] = 5 -- Blue Dye
+							}
+						},
+				[186] = { -- Mining
+							questId = 29518
+						},
+				[393] = { -- Skinning
+							questId = 29519
+						},
+				[197] = { -- Tailoring
+							questId = 29520,
+							questItems = {
+								[2320] = 1, -- Coarse Thread
+								[6260] = 1, -- Blue Dye
+								[2604] = 1 -- Red Dye
+							}
+						},
+			-- Secondary Professions
+				[794] = { -- Archaeology
+							questId = 29507,
+							questCurrency = {
+								[393] = 15 -- Fossil Archaeology Fragment
+							}
+						},
+				[129] = { -- FirstAid
+							questId = 29512
+						},
+				[356] = { -- Fishing
+							questId = 29513
+						},
+				[185] = { -- Cooking
+							questId = 29509,
+							questItems = {
+								[30817] = 5 -- Simple Flour
+							}
+						}
+		}
+		local ProfessionTradeSkillLines = {
+			-- https://wowpedia.fandom.com/wiki/TradeSkillLineID
+			-- https://wow.tools/dbc/?dbc=skillline
+			-- [ProfId] = { Classic, TBC, Wrath, Cata, MoP, WoD, Legion, BfA, SL, DF }
+			-- Primary Professions
+				[171] = { -- Alchemy
+					2485, 2484, 2483, 2482, 2481, 2480, 2479, 2478, 2750, 2823 
+				},
+				[164] = { -- Blacksmithing
+					2477, 2476, 2475, 2474, 2473, 2472, 2454, 2437, 2751, 2822
+				},
+				[333] = { -- Enchanting
+					2494, 2493, 2492, 2491, 2489, 2488, 2487, 2486, 2753, 2825
+				},
+				[202] = { -- Engineering
+					2506, 2505, 2504, 2503, 2502, 2501, 2500, 2499, 2755, 2827
+				},
+				[182] = { -- Herbalism
+					2556, 2555, 2554, 2553, 2552, 2551, 2550, 2549, 2760, 2832
+				},
+				[773] = { -- Inscription
+					2514, 2513, 2512, 2511, 2510, 2509, 2508, 2507, 2756, 2828
+				},
+				[755] = { -- Jewelcrafting
+					2524, 2523, 2522, 2521, 2520, 2519, 2518, 2517, 2757, 2829
+				},
+				[165] = { -- Leatherworking
+					2532, 2531, 2530, 2529, 2528, 2527, 2526, 2525, 2758, 2830
+				},
+				[186] = { -- Mining
+					2572, 2571, 2570, 2569, 2568, 2567, 2566, 2565, 2761, 2833
+				},
+				[393] = { -- Skinning
+					2564, 2563, 2562, 2561, 2560, 2559, 2558, 2557, 2762, 2834
+				},
+				[197] = { -- Tailoring
+					2540, 2539, 2538, 2537, 2536, 2535, 2534, 2533, 2759, 2831
+				},
+			-- Secondary Professions
+				--[794] = { -- Archeology
+				--}
+				[185] = { -- Cooking
+					2548, 2547, 2546, 2545, 2544, 2543, 2542, 2541, 2752, 2824
+				},
+				--[129] = { -- First Aid
+				--}
+				[356] = { -- Fishing
+					2592, 2591, 2590, 2589, 2588, 2587, 2586, 2585, 2754, 2826
+				}
+		}
+
+	-- Additional Quests and Activities
+		local additionalQuests = {
+			PetBattle = {
+				Icon = 631719, -- 319458
+				QuestIdTable = {
+					32175, -- Jeremy Feasel - Darkmoon Pet Battle!
+					36471 -- Christoph VonFeasel - A New Darkmoon Challenger!
+				}
+			},
+			DeathMetalKnight = {
+				Icon = 236362,
+				QuestId = 47767 -- Death Metal Knight
+			},
+			TestYourStrength = {
+				Icon = 136101,
+				QuestId = 29433 -- Test Your Strenght
+			},
+			FadedTreasureMap = { -- One time Quest starting from Vendor bought item
+				Icon = 237388,
+				QuestId = 38934, -- Silas' Secret Stash
+				StartItemId = 126930 -- Faded Treasure Map
+			}
+		}
+
+
+--[[----------------------------------------------------------------------------
+	Helper functions
+----------------------------------------------------------------------------]]--
+	local function Debug(text, ...)
+		if (not db) or (not db.debug) then return end
+
+		if text then
+			if text:match("%%[dfqsx%d%.]") then
+				(DEBUG_CHAT_FRAME or (ChatFrame3:IsShown() and ChatFrame3 or ChatFrame4)):AddMessage("|cffff9999"..ADDON_NAME..":|r " .. format(text, ...))
+			else
+				(DEBUG_CHAT_FRAME or (ChatFrame3:IsShown() and ChatFrame3 or ChatFrame4)):AddMessage("|cffff9999"..ADDON_NAME..":|r " .. strjoin(" ", text, tostringall(...)))
+			end
+		end
+	end
+
+	local function Print(text, ...)
+		if text then
+			if text:match("%%[dfqs%d%.]") then
+				DEFAULT_CHAT_FRAME:AddMessage("|cffffcc00".. ADDON_NAME ..":|r " .. format(text, ...))
+			else
+				DEFAULT_CHAT_FRAME:AddMessage("|cffffcc00".. ADDON_NAME ..":|r " .. strjoin(" ", text, tostringall(...)))
+			end
+		end
+	end
+
+	local function initDB(db, defaults) -- This function copies values from one table into another:
+		if type(db) ~= "table" then db = {} end
+		if type(defaults) ~= "table" then return db end
+		for k, v in pairs(defaults) do
+			if type(v) == "table" then
+				db[k] = initDB(db[k], v)
+			elseif type(v) ~= type(db[k]) then
+				db[k] = v
+			end
+		end
+		return db
+	end
+
+	-- COLOUR MIXING THROUGH ADDITION IN CMYK SPACE
+	-- Modified from https://stackoverflow.com/a/30079700
+	local blendColors
+	do
+		local RGB_scale = 255
+		local CMYK_scale = 100
+
+		local function RGB_to_CMYK(r, g, b)
+			if (r == 0) and (g == 0) and (b == 0) then -- black
+				return 0, 0, 0, CMYK_scale
+			end
+
+			-- RGB [0,255] -> CMY [0,1]
+			local c = 1 - r / RGB_scale
+			local m = 1 - g / RGB_scale
+			local y = 1 - b / RGB_scale
+
+			-- extract out K [0,1]
+			local min_CMY = math.min(c, m, y)
+			c = (c - min_CMY)
+			m = (m - min_CMY)
+			y = (y - min_CMY)
+			local k = min_CMY
+
+			-- rescale to the range [0,CMYK_scale]
+			return c * CMYK_scale, m * CMYK_scale, y * CMYK_scale, k * CMYK_scale
+		end
+
+		local function CMYK_to_RGB(c, m, y, k)
+			-- CMYK [0,100] -> RGB [0,255]
+			local r = RGB_scale * (1 - (c + k) / CMYK_scale)
+			local g = RGB_scale * (1 - (m + k) / CMYK_scale)
+			local b = RGB_scale * (1 - (y + k) / CMYK_scale)
+			Debug("<- NewColor: %.2f, %.2f, %.2f", r, g, b)
+			return r, g, b
+		end
+
+		function blendColors(list_of_colours)
+			local C, M, Y, K = 0, 0, 0, 0
+
+			for i = 1, #list_of_colours do
+				local r, g, b, o = unpack(list_of_colours[i])
+				local c, m, y, k = RGB_to_CMYK(r, g, b)
+				C = C + o * c
+				M = M + o * m
+				Y = Y + o * y 
+				K = K + o * k
+				Debug("-> OldColor #%d: %.2f, %.2f, %.2f", i, r, g, b)
+			end
+
+			return CMYK_to_RGB(C, M, Y, K)
+		end
+	end
+
+
+--[[----------------------------------------------------------------------------
+	EventHandler
+----------------------------------------------------------------------------]]--
+	local f = CreateFrame("Frame", "DMFQuest", UIParent, "ResizeLayoutFrame") -- ResizeLayoutFrame
+	f:SetScript("OnEvent", function(self, event, ...)
+		Debug("===", event, tostringall(...))
+		return self[event] and self[event](self, event, ...)
+	end)
+	f:RegisterEvent("ADDON_LOADED")
+
+	-- Init
+		function f:ADDON_LOADED(event, addOnName, containsBindings)
+			if addOnName ~= ADDON_NAME then return end
+
+			DMFQConfig = initDB(DMFQConfig, dbDefaults)
+			db = DMFQConfig
+
+			self.initDone = false
+			self.startTime = 0
+			self.endTime = 0
+			self.addonTitle = strtrim(string.format("%s %s", ADDON_NAME, C_AddOns.GetAddOnMetadata(ADDON_NAME, "Version")))
+			self:RegisterEvent("PLAYER_LOGIN")
+
+			self:UnregisterEvent(event)
+			self.ADDON_LOADED = nil
+		end
+
+		function f:PLAYER_LOGIN(event)
+			self:CreateUI()
+			self:ClearAllPoints()
+			self:SetPoint((db.GrowDirection == 1) and "BOTTOMLEFT" or "TOPLEFT", UIParent, "BOTTOMLEFT", db.XPos, db.YPos) -- 0 = Down, 1 = Up
+
+			self:RegisterEvent("PLAYER_ENTERING_WORLD")
+			--self:RegisterEvent("PLAYER_INTERACTION_MANAGER_FRAME_SHOW")
+			self:RegisterEvent("QUEST_LOG_UPDATE")
+			self:RegisterEvent("SKILL_LINES_CHANGED")
+			self:RegisterEvent("TRADE_SKILL_LIST_UPDATE")
+			self:RegisterEvent("ZONE_CHANGED")
+			self:RegisterEvent("ZONE_CHANGED_INDOORS")
+			self:RegisterEvent("ZONE_CHANGED_NEW_AREA")
+
+			self:UnregisterEvent(event)
+			self.PLAYER_LOGIN = nil
+		end
+
+		local eventsAlreadyRegistered = false
+		function f:PLAYER_ENTERING_WORLD(event, isInitialLogin, isReloadingUi) -- Fires when the player logs in, /reloads the UI or zones between map instances. Basically whenever the loading screen appears.
+			if self:CheckForPortalZone() and self:CheckForDMF() then
+				if (not eventsAlreadyRegistered) then
+					eventsAlreadyRegistered = true
+					self:RegisterEvent("BAG_UPDATE")
+					--self:RegisterEvent("MERCHANT_FILTER_ITEM_UPDATE")
+					self:RegisterEvent("PLAYER_INTERACTION_MANAGER_FRAME_SHOW")
+					self:RegisterEvent("MERCHANT_UPDATE")
+					self:RegisterEvent("QUEST_ACCEPTED")
+					self:RegisterEvent("QUEST_DETAIL")
+					self:RegisterEvent("QUEST_REMOVED")
+					self:RegisterEvent("QUEST_DATA_LOAD_RESULT")
+				end
+
+				if self.initDone then -- Limit calls to these during Login/ReloadUI
+					self:UpdateItemButtons()
+					self:UpdateTextLines()
+				end
+
+				if (not self:IsShown()) then
+					Debug("!!! Showing !!!", self:CheckForPortalZone(), self:CheckForDMF())
+					self:Show()
+				end
+
+				return
+			elseif (eventsAlreadyRegistered) then
+				eventsAlreadyRegistered = false
+				self:UnregisterEvent("BAG_UPDATE")
+				self:UnregisterEvent("PLAYER_INTERACTION_MANAGER_FRAME_SHOW")
+				self:UnregisterEvent("QUEST_ACCEPTED")
+				self:UnregisterEvent("QUEST_DETAIL")
+				self:UnregisterEvent("QUEST_REMOVED")
+				self:UnregisterEvent("QUEST_DATA_LOAD_RESULT")
+			end
+
+			if (self:IsShown()) and (not isFramePinned) then
+				Debug("!!! Hiding !!!", self:CheckForPortalZone(), self:CheckForDMF())
+				self:Hide()
+			end
+		end
+
+		function f:QUEST_LOG_UPDATE(event) -- Fires when the quest log updates. Fires also when the player logs in or /reloads the UI
+			if (not self.initDone) then
+				self:RegisterEvent("CALENDAR_UPDATE_EVENT_LIST") -- Triggers when your query has finished processing on the server and new calendar information is available.
+				C_Calendar.OpenCalendar() -- Requests calendar information from the server. Does not open the calendar frame.
+
+				self:UpdateItemButtons()
+				self:UpdateProfessions()
+				self:UpdateTextLines()
+
+				self.initDone = true -- Don't do this more than once
+				-- We don't actually need this, since QUEST_ACCEPTED and QUEST_REMOVED covers same things with less firing overall
+				self:UnregisterEvent(event)
+				self.QUEST_LOG_UPDATE = nil
+			end
+		end
+
+		function f:CALENDAR_UPDATE_EVENT_LIST(event) -- Fired when Calendar data is available
+			self:UnregisterEvent(event)
+
+			if self:CheckForDMF() then
+				--C_Timer.After(1, function()
+					Print(GREEN_FONT_COLOR:WrapTextInColorCode(L.ChatMessage_Login_DMFWarning))
+				--end)
+			end
+
+			self.CALENDAR_UPDATE_EVENT_LIST = nil
+		end
+
+	-- Professions
+		function f:SKILL_LINES_CHANGED(event) -- Only fires for major changes to the list, such as learning or unlearning a skill or raising one's level from Journeyman to Master. It doesn't fire for skill rank increases.
+			if self.initDone then
+				self:UpdateProfessions()
+				self:UpdateTextLines()
+			end		
+		end
+
+		f.TRADE_SKILL_LIST_UPDATE = f.SKILL_LINES_CHANGED
+
+	-- Zones
+		-- Call PLAYER_ENTERING_WORLD, because it does the exact thing we want to do when ZONE_CHANGED* events fire
+		f.ZONE_CHANGED = f.PLAYER_ENTERING_WORLD			-- Fires when the player enters an outdoors subzone.
+		f.ZONE_CHANGED_INDOORS = f.PLAYER_ENTERING_WORLD	-- Fires when the player enters an indoors subzone.
+		f.ZONE_CHANGED_NEW_AREA = f.PLAYER_ENTERING_WORLD	-- Fires when the player enters a new zone.
+
+	-- Merchant
+		do -- MERCHANT throttling
+			local throttling
+
+			local function DelayedBuyItems(...)
+				throttling = nil
+
+				if f:CheckForDMF() and (f:IsShown() or (C_QuestLog.GetLogIndexForQuestID(29506) and C_QuestLog.GetLogIndexForQuestID(29506) > 0)) then -- 29506 = A Fizzy Fusion
+					f:AutoBuyItems()
+				end
+				--f:UpdateTextLines() -- This shouldn't be needed, because this gets taken care of by the bags portion
+			end
+
+			local function ThrottleBuyItems(...)
+				if (not throttling) then
+					Debug("-- Merchant: Throttling Buy Items", tostringall(...))
+
+					C_Timer.After(1, DelayedBuyItems)
+					throttling = true
+				end
+			end
+
+			f.MERCHANT_UPDATE = ThrottleBuyItems
+			f.MERCHANT_FILTER_ITEM_UPDATE = ThrottleBuyItems
+		end
+
+		function f:PLAYER_INTERACTION_MANAGER_FRAME_SHOW(event, interactionType) -- Show and Hide events have been streamlined into PLAYER_INTERACTION_MANAGER_FRAME_SHOW/HIDE in 10.0
+			if interactionType == Enum.PlayerInteractionType.Merchant then
+				f.MERCHANT_UPDATE()
+			end
+		end
+
+	-- Bags
+		do -- UpdateItemButtons and UpdateTextLines throttling
+			local throttling
+
+			local function DelayedUpdateItemButtons(...)
+				throttling = nil
+
+				f:UpdateItemButtons()
+				f:UpdateTextLines()
+			end
+
+			local function ThrottleUpdateItemButtons()
+				if (not throttling) then
+					Debug("-- Bags: Throttling Items and Quests Update")
+
+					C_Timer.After(0.5, DelayedUpdateItemButtons)
+					throttling = true
+				end
+			end
+
+			f.BAG_UPDATE = ThrottleUpdateItemButtons
+		end
+
+	-- Quests
+		function f:QUEST_ACCEPTED(event, questId)
+			self:UpdateItemButtons()
+		end
+
+		function f:QUEST_DETAIL(event, questStartItemID) -- Fired when the player is given a more detailed view of his quest.
+			if questStartItemID and turnInItems[questStartItemID] then -- Don't auto-accept any other quests than turn-in items
+				Debug(" <= Found Quest")
+				AcceptQuest()
+			elseif questStartItemID and questStartItemID == 0 then -- At least on PTR for some reason questStartItemID is 0?
+				Debug("- Falling back, arey you on PTR?")
+				local questId = GetQuestID()
+				for _, qId in pairs(turnInItems) do
+					if qId == questId then
+						Debug("  <== Found Quest")
+						AcceptQuest()
+						break
+					end
+				end
+			end
+		end
+
+		function f:QUEST_REMOVED(event, questID, wasReplayQuest)
+			self:UpdateItemButtons()
+		end
+
+		local questDataRequests = {}
+		-- Check if out previously requested QuestData from f:UpdateTextLines() has arrived
+		function f:QUEST_DATA_LOAD_RESULT(questID, success)
+			if questDataRequests[questID] then --and success then -- At least on PTR success always seems to return false
+				questDataRequests[questID] = nil
+				self:UpdateTextLines()
+			end
+		end
+
+
+--[[----------------------------------------------------------------------------
+	Functions
+----------------------------------------------------------------------------]]--
+	-- Create UI
+	local function _onEnterShowTooltip(self, motion) -- Show Tooltip
+		self.buttonIcon:SetVertexColor(buttonVertices[self.itemStatus][4], buttonVertices[self.itemStatus][5], buttonVertices[self.itemStatus][6])
 		GameTooltip:ClearLines()
-		GameTooltip:SetOwner(frame, "ANCHOR_RIGHT")
-		if db.ShowItemRewards then
-			local count = newbieText ~= nil and rewardsTable[newbieText] or "?"
-			GameTooltip:AddLine(normalText)
-			GameTooltip:AddLine(GARRISON_MISSION_REWARD_HEADER .. " |T134481:16:16:0:0:32:32:2:30:2:30|t " .. count .. " " .. ticketName)
-		else
-			GameTooltip:AddLine(normalText)
+		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+		GameTooltip:AddLine(self.tooltipText)
+		if db.ShowItemRewards and (self.itemStatus ~= 1) then -- Don't show rewards for already completed quests
+			local info = C_CurrencyInfo.GetCurrencyInfo(515)
+			local count = rewardsTable[self.itemId] or "?"
+			GameTooltip:AddLine(GARRISON_MISSION_REWARD_HEADER .. " |T".. info.iconFileID ..":16:16:0:0:32:32:2:30:2:30|t " .. count .. " " .. info.name) -- 134481, Darkmoon Prize Ticket
 		end
 		GameTooltip:Show() -- Region:Show() resizes the tooltip and reapplies any anchor defined with SetOwner().
 	end
 
-	local function hideTip() -- Hide Newbie Tooltip
-		GameTooltip:Hide();
+	local function _onLeaveHideTooltip(self, motion) -- Hide Tooltip
+		self.buttonIcon:SetVertexColor(buttonVertices[self.itemStatus][1], buttonVertices[self.itemStatus][2], buttonVertices[self.itemStatus][3])
+		GameTooltip:Hide()
 	end
 
-	if (not self) or self.CreateUI ~= nil then return end -- Don't go further too early to avoid errors
+	function f:CreateUI()
+		Debug("CreateUI")
+		self.fixedWidth = 324
+		self.minimumHeight = 150
+		self.heightPadding = 72 -- (TopBorder 2px, Title 20px, TopSeparator 2px) + (TopPadding 6px, Text [Dynamic], BottomPadding 6px) + (BottomSeparator 2px, Buttons 32px, BottomBorder 2px)
 
-	if not ticketName then
-		local currencyInfo = C_CurrencyInfo.GetCurrencyInfo(515) -- Darkmoon Prize Ticket
-		ticketName = currencyInfo.name
+		--[[
+		Texture Slicing (New in 10.2)
+		-----------------------------
+		This system is recommended to be used in new code going forward as a replacement for both the deprecated Backdrop system
+		and the script-based NineSlice panel layout utility. One of the advantages of this new system is that it only requires a
+		single texture object to render the grid, whereas both the old systems required nine separate objects. This system is
+		fully compatible with custom texture assets and does not require the use of atlases.
+		]]
+		-- Background
+		local backgroundTex = self:CreateTexture()
+		backgroundTex:SetTexture("Interface\\AddOns\\DMFQuest\\BackgroundTexture8x64.png")
+		backgroundTex:SetTextureSliceMargins(2, 24, 2, 36) -- left, top, right, bottom
+		backgroundTex:SetTextureSliceMode(Enum.UITextureSliceMode.Tiled)
+		backgroundTex:SetAllPoints(self)
+		backgroundTex:SetVertexColor(db.FrameVertexColor[1], db.FrameVertexColor[2], db.FrameVertexColor[3])
+		self.Background = backgroundTex
+
+		-- TitleText
+		local titleText = self:CreateFontString(nil, "OVERLAY", "GameFontNormal") -- FontSize 12
+		titleText:SetPoint("CENTER", self, "TOP", 0, -12)
+		titleText:SetText(self.addonTitle)
+		self.TitleText = titleText
+
+		-- Drag
+		self:SetMovable(true)
+		self:SetClampedToScreen(true)
+		self:EnableMouse(true)
+		self:RegisterForDrag("LeftButton")
+
+		self:SetScript("OnDragStart", function(self, button) -- self, button
+			if db.FrameLock then return end
+
+			self.StartMoving(self, button)
+		end)
+		self:SetScript("OnDragStop", function(self) -- self
+			self:StopMovingOrSizing()
+
+			db.XPos = self:GetLeft()
+			db.YPos = (db.GrowDirection == 1) and self:GetBottom() or self:GetTop() -- 0 = Down, 1 = Up
+
+			self:ClearAllPoints()
+			self:SetPoint((db.GrowDirection == 1) and "BOTTOMLEFT" or "TOPLEFT", UIParent, "BOTTOMLEFT", db.XPos, db.YPos) -- 0 = Down, 1 = Up
+		end)
+		self:SetScript("OnHide", f.StopMovingOrSizing)
+
+		-- CloseButton
+		local closeButton = CreateFrame("Button", nil, self, "UIPanelCloseButton")
+		closeButton:SetSize(28, 28)
+		closeButton:SetPoint("TOPRIGHT", 2, 1)
+		closeButton:GetNormalTexture():SetVertexColor(
+			blendColors(
+				{
+					{ db.FrameVertexColor[1], db.FrameVertexColor[2], db.FrameVertexColor[3], .5 },
+					{ 1, 1, 1, .5 }
+				}
+			)
+		)
+		self.CloseButton = closeButton
+
+		-- CloseButton doesn't make sound when clicked
+		closeButton:SetScript("OnClick", function(self, button, down)
+			Debug("CloseButton OnClick", self:GetParent():GetName(), button, down)
+			--PlaySound(SOUNDKIT.IG_CHARACTER_INFO_CLOSE)
+			PlaySound(SOUNDKIT.U_CHAT_SCROLL_BUTTON)
+			--self:GetParent():Hide()
+			f:Hide()
+			isFramePinned = false
+			f.TitleText:SetText(f.addonTitle)
+		end)
+
+		-- ItemButtons
+		for i = 1, #itemButtonOrder do
+			local b = CreateFrame("Button", nil, self)
+			b:SetSize(32, 32)
+
+			b.tooltipText = ""
+			b.itemStatus = 4
+			b:SetScript("OnEnter", _onEnterShowTooltip)
+			b:SetScript("OnLeave", _onLeaveHideTooltip)
+
+			local tex = b:CreateTexture()
+			tex:SetAllPoints()
+			b.buttonIcon = tex
+
+			b:SetPoint("BOTTOMLEFT", (i - 1) * 32 + 2, 2)
+
+			local item = Item:CreateFromItemID(itemButtonOrder[i])
+			item:ContinueOnItemLoad(function()
+				b.itemId = itemButtonOrder[i]
+				b.itemName = item:GetItemName() 
+				b.itemLink = item:GetItemLink()
+
+				local tex = item:GetItemIcon()
+				b.buttonIcon:SetTexture(tex)
+
+				Debug(" - Button", i, b.itemName)
+			end)
+
+			self["itemButton" .. i] = b
+			self:MarkIgnoreInLayout(b) -- Ignore these objects when calculating the size for the Frame
+		end
+
+		-- Profession Container
+		local prefessionContainer = CreateFrame("Frame", nil, self, "ResizeLayoutFrame") -- ResizeLayoutFrame
+		prefessionContainer.fixedWidth = 320
+		prefessionContainer.minimumHeight = 50
+		prefessionContainer:SetPoint("TOP", 0, -24)
+		self.Container = prefessionContainer
+
+		-- TextLine
+		local containerText = self:CreateFontString(nil, "OVERLAY", "Game15Font_o1") -- "GameFontHighlight")
+		containerText:SetPoint("CENTER", 0, 6) -- Y-offset is the size difference between the Title+Button Bars (with edges) and the Frame minimum size divided by two ((72-60)/2) and maybe adjusted by one (+1) to make the text look more natural
+		containerText:SetText("\n" .. ADDON_NAME .. " Loaded!\n\n")
+		--containerText:SetText(ADDON_NAME .. " Loaded!\n\n§1234567890+´+\n½!\"#¤%&/()=?`\n\nqwertyuiopå¨\nQWERTYUIOPÅ^\n\nasdfghjklöä'\nASDFGHJKLÖÄ*\n\n<zxcvbnm,.-\n>ZXCVBNM;:_") -- Debug
+		self.ContainerText = containerText
+
+		self:MarkIgnoreInLayout(backgroundTex, titleText, closeButton, containerText) -- Ignore these objects when calculating the size for the Frame
+
+		--self:Show()
+		self:Layout() -- Resize UI
+		self.CreateUI = nil
 	end
 
-	local i = 1
-	for questID, itemID in pairs(turnInItems) do
-		if questID and itemID then
-			self.Buttons[i].texture:SetTexture(GetItemIcon(itemID) or 134400) -- itemIcon or ?-icon
+	-- CheckForDMF
+	local function _shiftTimeTables(timeData) -- Shift timeData if needed
+		if (not db.UseTimeOffset) then
+			return timeData
+		end
 
-			if C_QuestLog.IsQuestFlaggedCompleted(questID) then -- Quest done
-				self.Buttons[i]:SetScript("OnClick", function(self) return end)
-				self.Buttons[i]:SetScript("OnEnter", function(self)
-					self.texture:SetVertexColor(0.75, 1, 0.75)
-					showTip(self, L.QuestDone)
-				end)
-				self.Buttons[i]:SetScript("OnLeave", function(self)
-					self.texture:SetVertexColor(0, 1, 0)
-					hideTip()
-				end)
-				self.Buttons[i].texture:SetVertexColor(0, 1, 0)
-			elseif findQuest(questID) then -- On quest
-				self.Buttons[i]:SetScript("OnClick", function(self) return end)
-				self.Buttons[i]:SetScript("OnEnter", function(self)
-					self.texture:SetVertexColor(0.75, 1, 1)
-					showTip(self, L.QuestReady, itemID)
-					end)
-				self.Buttons[i]:SetScript("OnLeave", function(self)
-					self.texture:SetVertexColor(0, 1, 1)
-					hideTip()
-				end)
-				self.Buttons[i].texture:SetVertexColor(0, 1, 1)
-			elseif GetItemCount(itemID) == 0 then -- No item
-				self.Buttons[i]:SetScript("OnClick", function(self) return end)
-				self.Buttons[i]:SetScript("OnEnter", function(self)
-					self.texture:SetVertexColor(0.75, 0.75, 0.75)
-					--showTip(self, L.QuestNoItem)
-					local link = ITEM_QUALITY_COLORS[3].hex.."["..f:GetItemName(itemID).."]|r" -- Rare Blue Color [Item name]
-					showTip(self, format(L.QuestNoItem, link), itemID)
-				end)
-				self.Buttons[i]:SetScript("OnLeave", function(self)
-					self.texture:SetVertexColor(0.3, 0.3, 0.3)
-					hideTip()
-				end)
-				self.Buttons[i].texture:SetVertexColor(0.3, 0.3, 0.3)
-			else -- Item, no quest
-				self.Buttons[i]:SetScript("OnClick", function(self)
-					if not InCombatLockdown() then
-						C_Container.UseContainerItem(getSlot(itemID))
-					end
-				end)
-				self.Buttons[i]:SetScript("OnEnter", function(self)
-					self.texture:SetVertexColor(0.75, 0.75, 0.75)
-					showTip(self, L.QuestReadyToAccept, itemID)
-				end)
-				self.Buttons[i]:SetScript("OnLeave", function(self)
-					self.texture:SetVertexColor(1, 1, 1)
-				end)
-				self.Buttons[i].texture:SetVertexColor(1, 1, 1)
+		timeData.hour = timeData.hour + db.TimeOffsetValue
+
+		if timeData.hour < 0 then
+			timeData.monthDay = timeData.monthDay - 1
+			timeData.hour = timeData.monthDay + 24
+		elseif timeData.hour > 23 then
+			timeData.monthDay = timeData.monthDay + 1
+			timeData.hour = timeData.hour - 24
+		end
+
+		local monthInfo = C_Calendar.GetMonthInfo(0)
+		local previousMonthInfo = C_Calendar.GetMonthInfo(-1)
+
+		if timeData.monthDay <= 0 then
+			timeData.month = timeData.month - 1
+			timeData.monthDay = previousMonthInfo.numDays
+		elseif timeData.monthDay > monthInfo.numDays then
+			timeData.month = timeData.month + 1
+			timeData.monthDay = 1
+		end
+
+		if timeData.month <= 0 then
+			timeData.year = timeData.year - 1
+			timeData.month = 12
+		elseif timeData.month > 12 then
+			timeData.year = timeData.year + 1
+			timeData.month = 1
+		end
+
+		return timeData
+	end
+
+	local function _epochToHumanReadable(epoch) -- Turn epoch into Human readable
+		local mins, hours, days, returnString = 0, 0, 0, ""
+
+		while epoch >= 86400 do
+			days = days + 1
+			epoch = epoch - 86400
+		end
+		if days > 0 then
+			returnString = returnString .. string.format("%d %s, ", days, days > 1 and "days" or "day")
+		end
+
+		while epoch >= 3600 do
+			hours = hours + 1
+			epoch = epoch - 3600
+		end
+		if hours > 0 then
+			returnString = returnString .. string.format("%d %s, ", hours, hours > 1 and "hours" or "hour")
+		end
+
+		while epoch >= 60 do
+			mins = mins + 1
+			epoch = epoch - 60
+		end
+		if mins > 0 then
+			returnString = returnString .. string.format("%d %s, ", mins, mins > 1 and "mins" or "min")
+		end
+		if epoch > 0 then
+			returnString = returnString .. string.format("%d %s", epoch, epoch > 1 and "secs" or "sec")
+		end
+
+		return strtrim(returnString, " ,")
+	end
+
+	function f:CheckForDMF() -- Check Calendar for if DMF is on
+		Debug("CheckForDMF")
+
+		local currentCalendarTime = C_DateAndTime.GetCurrentCalendarTime()
+		--[[
+			CalendarTime
+			Field		Type	Description
+			year		number	The current year (e.g. 2019)
+			month		number	The current month [1-12]
+			monthDay	number	The current day of the month [1-31]
+			weekday		number	The current day of the week (1=Sunday, 2=Monday, ..., 7=Saturday)
+			hour		number	The current time in hours [0-23]
+			minute		number	The current time in minutes [0-59]
+		]]--
+		if self.startTime > 0 and self.endTime > 0 then
+			if (db.debug and db.isPTR) then currentCalendarTime.monthDay = 7 end -- PTR Debug
+			currentCalendarTime.day = currentCalendarTime.monthDay
+			local currentEpoch = time(currentCalendarTime)
+
+			if currentEpoch >= self.startTime and currentEpoch <= self.endTime then
+				Debug(" <= Exit via shortcut:", _epochToHumanReadable(currentEpoch - self.startTime), "<-", currentEpoch, "->", _epochToHumanReadable(self.endTime - currentEpoch))
+				return true
+			end
+
+			Debug("- Reset startTime and endTime:", _epochToHumanReadable(currentEpoch - self.startTime), "<-", currentEpoch, "->", _epochToHumanReadable(self.endTime - currentEpoch))
+			self.startTime = 0
+			self.endTime = 0
+		end
+
+		local searchResult, openMonth, openYear
+		if CalendarFrame and CalendarFrame:IsShown() then -- Get current open month in calendar view
+			Debug("- Save Open")
+			local monthInfo = C_Calendar.GetMonthInfo()
+			openMonth, openYear = monthInfo.month, monthInfo.year
+		end
+		C_Calendar.SetAbsMonth(currentCalendarTime.month, currentCalendarTime.year)
+
+		currentCalendarTime = _shiftTimeTables(currentCalendarTime)
+		Debug("- Date and Time: %d.%d.%d   %d:%d (%s%d)", currentCalendarTime.year, currentCalendarTime.month, currentCalendarTime.monthDay, currentCalendarTime.hour, currentCalendarTime.minute, db.TimeOffsetValue < 0 and "-" or "+", db.TimeOffsetValue)
+		if (db.debug and db.isPTR) then currentCalendarTime.monthDay = 7 end -- PTR Debug
+		local numDayEvents = C_Calendar.GetNumDayEvents(0, currentCalendarTime.monthDay)
+
+		Debug("- Check HolidayInfo")
+		for i = 1, numDayEvents do
+			local holidayData = C_Calendar.GetHolidayInfo(0, currentCalendarTime.monthDay, i)
+
+			local texture = (holidayData and holidayData.texture) and holidayData.texture or 0
+
+			Debug("  -- ", i, "/", numDayEvents, "-", texture)
+			if texture == 235448 or texture == 235447 or texture == 235446 then -- DMF begin, middle, end
+				Debug("  <== Found DMF: %d.-%d.%d.%d", holidayData.startTime.monthDay, holidayData.endTime.monthDay, holidayData.startTime.month, holidayData.startTime.year)
+				holidayData.startTime.day = holidayData.startTime.monthDay
+				holidayData.endTime.day = holidayData.endTime.monthDay
+				self.startTime = time(holidayData.startTime)
+				self.endTime = time(holidayData.endTime)
+
+				if db.UseTimeOffset then
+					self.startTime = self.startTime + (db.TimeOffsetValue * 3600)
+					self.endTime = self.endTime + (db.TimeOffsetValue * 3600)
+				end
+
+				searchResult = true
+				break
 			end
 		end
 
-		i = i + 1
+		if openMonth and openYear then -- Restore previously open month in calendar view
+			Debug("- Restore Open")
+			C_Calendar.SetAbsMonth(openMonth, openYear)
+		end
+
+		return (searchResult == true)
 	end
 
-	if DEBUG then Debug("- Update Items") end -- Debug
-end
+	-- CheckForPortalZone
+	local cacheAreaNames = {}
+	f.cacheAreaNames = cacheAreaNames -- Debug
+	-- With default PTR settings for my machine (Draw Distance 3)
+	-- Portal disappears around 415-420yd
+	-- Portal appears around 375-400+yd
+	local portalDistance = 800 -- Just to be safe
+	-- UnitPosition: posY, posX, posZ (always 0), instanceId (1 for Kalimdor) - We don't use last two
+	local function _isPortalInRange(portalX, portalY, playerX, playerY)
+		if not portalX or not portalY or not playerX or not playerY then
+			return false
+		end
 
-function f:UpdateProfession(which, id) -- Keep track of Player Professions
-	local profession = ProfData[which]
+		local deltaX, deltaY = playerX - portalX, playerY - portalY
+		local distance = (deltaX * deltaX + deltaY * deltaY)^0.5
+		if db.isPTR then
+			Debug("  --> _isPortalInRange: %.2f (%.2f, %.2f) %s", distance, deltaX, deltaY, tostring(distance <= portalDistance))
+		end
+		f.portalDistance = distance
+		return distance <= portalDistance
+	end
 
-	if id then
-		-- The player knows this profession!
-		local name, icon, skillLevel, maxSkillLevel, _, _, skillLine = GetProfessionInfo(id)
+	function f:CheckForPortalZone() -- Check if we are  near DMF Portal area
+		Debug("CheckForPortalZone")
 
-		-- Trying to fix stuff for SL and later
-		local skillLevelTemp, maxSkillLevelTemp = 0, 0
-		if which < 3 then -- Archaeology (3), Fishing (4) and Cooking (5) need different approach because C_TradeSkillUI.GetTradeSkillLineInfoByID() doesn't return data for them
-			for _, skillLineID in pairs(C_TradeSkillUI.GetAllProfessionTradeSkillLines()) do
-				local skillTable = C_TradeSkillUI.GetProfessionInfoBySkillLineID(skillLineID) -- skillLevel, professionID, skillModifier, parentProfessionName, parentProfessionID, profession, isPrimaryProfession, professionName, maxSkillLevel, expansionName
+		local uiMapID = C_Map.GetBestMapForUnit("player")
+		if uiMapID then
+			local info = C_Map.GetMapInfo(uiMapID)
+			local subZone = GetMinimapZoneText() --GetSubZoneText()
+			local subZoneMatch = false
+			Debug("- Map", uiMapID, info.name, info.mapType, subZone)
 
-				if skillTable.parentProfessionID == skillLine then
-					skillLevelTemp = skillLevelTemp + skillTable.skillLevel
-					maxSkillLevelTemp = maxSkillLevelTemp + skillTable.maxSkillLevel
-
-					if skillTable.skillLevel and skillTable.skillLevel > 0 then
-						if DEBUG then Debug("Prof: %d (%d / %d) - %d / %d - %d / %d", which, id, skillLineID, skillLevelTemp, maxSkillLevelTemp, skillTable.skillLevel, skillTable.maxSkillLevel) end -- Debug
+			if subZoneAreaIDs[uiMapID] then
+				Debug("- Search for subZoneMatch")
+				for i = 1, #subZoneAreaIDs[uiMapID] do
+					Debug("  -- ", i, "/", #subZoneAreaIDs[uiMapID], "-", subZoneAreaIDs[uiMapID][i], C_Map.GetAreaInfo(subZoneAreaIDs[uiMapID][i]))
+					local areaName = cacheAreaNames[subZoneAreaIDs[uiMapID][i]] or C_Map.GetAreaInfo(subZoneAreaIDs[uiMapID][i]) -- Check if we have cached this areaName already
+					if (areaName == subZone) or (uiMapID == 7 and info.name == subZone) then
+						cacheAreaNames[subZoneAreaIDs[uiMapID][i]] = cacheAreaNames[subZoneAreaIDs[uiMapID][i]] or areaName -- Cache areaName for later use to reduce function calls
+						subZoneMatch = true
+						Debug("  <== Found subZoneMatch:", subZoneAreaIDs[uiMapID][i], subZone)
+						break
 					end
 				end
 			end
-		elseif which > 3 then -- Archaeology is just fine as it is, Fishing and Cooking needs hacking
-			if DEBUG then Debug("->", which, id, (GetProfessionInfo(id))) end -- Debug
 
-			local secondaryProfessionLines = {
-				-- Fishing
-					2592, -- Fishing 300
-					2591, -- Outland Fishing 75
-					2590, -- Northrend Fishing 75
-					2589, -- Cataclysm Fishing 75
-					2588, -- Pandaria Fishing 75
-					2587, -- Draenor Fishing 100
-					2586, -- Legion Fishing 100
-					2585, -- Kul Tiran Fishing 175
-					2754, -- Shadowlands Fishing 200
-					2826, -- Dragon Isles Fishing 100
-					-- Total 1275
+			--[[
+				/dump C_Map.GetBestMapForUnit("player")
+				/dump C_Map.GetMapInfo(C_Map.GetBestMapForUnit("player"))
+				/dump C_MapExplorationInfo.GetExploredAreaIDsAtPosition(7, C_Map.GetPlayerMapPosition(7, "player"))
+				/dump C_Map.GetAreaInfo(1638)
 
-				-- Cooking
-					2548, -- Old World Recipes 300
-					2547, -- Outlandish Dishes 75
-					2546, -- Recipes of the Cold North 75
-					2545, -- Cataclysm Recipes 75
-					2544, -- Pandaren Cuisine 75
-					2543, -- Food of Draenor 100
-					2542, -- Food of the Broken Isles 100
-					2541, -- Kul Tiran Cuisine 175
-					2752, -- Shadowlands Cuisine 75
-					2824 -- Dragon Isles Cooking 100
-					-- Total 1150
-			}
-
-			for _, skillLineID in pairs(secondaryProfessionLines) do
-				local skillTable = C_TradeSkillUI.GetProfessionInfoBySkillLineID(skillLineID) -- skillLevel, professionID, skillModifier, parentProfessionName, parentProfessionID, profession, isPrimaryProfession, professionName, maxSkillLevel, expansionName
-
-				if skillTable.parentProfessionID == skillLine then
-					skillLevelTemp = skillLevelTemp + skillTable.skillLevel
-					maxSkillLevelTemp = maxSkillLevelTemp + skillTable.maxSkillLevel
-
-					if skillTable.skillLevel and skillTable.skillLevel > 0 then
-						if DEBUG then Debug("Prof: %d (%d / %d) - %d / %d - %d / %d", which, id, skillLineID, skillLevelTemp, maxSkillLevelTemp, skillTable.skillLevel, skillTable.maxSkillLevel) end -- Debug
-					end
-				end
-			end
-		end
-
-		local finalSkillLevel = skillLevelTemp > 0 and skillLevelTemp or skillLevel
-		local finalMaxSkillLevel = maxSkillLevelTemp > 0 and maxSkillLevelTemp or maxSkillLevel
-
-		-- Update the profession data
-		profession.name = name
-		profession.icon = icon
-		if profession.skillLevel == nil or finalSkillLevel > profession.skillLevel then
-			profession.skillLevel = finalSkillLevel
-		end
-		if profession.maxSkillLevel == nil or finalMaxSkillLevel > profession.maxSkillLevel then
-			profession.maxSkillLevel = finalMaxSkillLevel
-		end
-		profession.id = skillLine
-	else
-		-- The player does not know this profession.
-		-- Clear the profession data
-		profession.name = nil
-		profession.icon = nil
-		profession.skillLevel = nil
-		profession.maxSkillLevel = nil
-		profession.id = nil
-	end
-
-	if DEBUG then Debug("- Update Profession:", which, profession.name, id) end -- Debug
-end
-
-function f:UpdateQuests(retry) -- Keep track of Professions Quests status and item counts
-	local function Resize()
-		local height = 20 + 32 + 2 -- Title, Buttons, Top Marginal
-
-		for i = 1, #self.Strings do
-			if self.Strings[i]:GetText() ~= nil then
-				height = height + self.Strings[i]:GetHeight() + 4 -- String + Marginal
-			end
-		end
-
-		height = floor(height + 0.5)
-
-		if height < floor(20 + 32 + 4 + self.Strings[1]:GetHeight()) then -- Title, Buttons, Marginals and String 1
-			height = floor(20 + 32 + 4 + self.Strings[1]:GetHeight())
-		end
-
-		f:SetHeight(height)
-
-		f:ClearAllPoints()
-		f:SetPoint("BOTTOMLEFT", db.XPos, db.YPos)
-
-		if DEBUG then Debug("-- Set Height:", height) end -- Debug
-	end
-
-	if (not self) or self.CreateUI ~= nil then return end -- https://www.curseforge.com/wow/addons/dmfquest?comment=48
-
-	for i = 1, #ProfData do
-		local profession = ProfData[i]
-
-		if profession.id then -- Profession
-			local questData = ProfIDs[profession.id]
-
-			self.Lines[i]:Show()
-
-			if db.HideMax and profession.skillLevel == profession.maxSkillLevel then -- Hide maxed professions
-				self.Strings[i]:SetText(nil)
-				self.Lines[i]:Hide()
-			elseif C_QuestLog.IsQuestFlaggedCompleted(questData.quest) then -- Quest done
-				self.Strings[i]:SetText(format("|T%s:0|t %s - %d/%d\n%s%s|r", profession.icon, profession.name, profession.skillLevel, profession.maxSkillLevel, GREEN_FONT_COLOR_CODE, L.QuestDone))
-			--elseif profession.skillLevel >= 75 then -- Quest not done, enough skill to do one
-			elseif profession.skillLevel >= 1 then -- Quest not done, enough skill to do one
-				if (profession.maxSkillLevel - profession.skillLevel) < 5 and profession.maxSkillLevel < skillCap then -- Danger to waste skillpoints by capping
-					self.Strings[i]:SetText(format("|T%s:0|t %s - %s%d/%d|r", profession.icon, profession.name, ORANGE_FONT_COLOR_CODE, profession.skillLevel, profession.maxSkillLevel))
-				else -- No need to worry about capping skill
-					self.Strings[i]:SetText(format("|T%s:0|t %s - %d/%d", profession.icon, profession.name, profession.skillLevel, profession.maxSkillLevel))
-				end
-
-				if profession.id == 794 then
-					for id, amount in pairs(questData.currency) do
-						--local name, current = GetCurrencyInfo(id)
-						local currencyInfo = C_CurrencyInfo.GetCurrencyInfo(id)
-						--[[
-							name					string
-							isHeader				boolean
-							isHeaderExpanded		boolean
-							isTypeUnused			boolean
-							isShowInBackpack		boolean
-							quantity				number
-							iconFileID				number
-							maxQuantity				number
-							canEarnPerWeek			boolean
-							quantityEarnedThisWeek	number
-							isTradeable				boolean
-							quality					ItemQuality
-							maxWeeklyQuantity		number
-							discovered				boolean
-						]]
-					
-						--if current < amount then
-						if currencyInfo.quantity < amount then
-							--self.Strings[i]:SetText(format("%s\n%s %s%d/%d|r", self.Strings[i]:GetText(), name, RED_FONT_COLOR_CODE, current, amount))
-							self.Strings[i]:SetText(format("%s\n%s %s%d/%d|r", self.Strings[i]:GetText(), currencyInfo.name, RED_FONT_COLOR_CODE, currencyInfo.quantity, amount))
-						else
-							--self.Strings[i]:SetText(format("%s\n%s %s%d/%d|r", self.Strings[i]:GetText(), name, GREEN_FONT_COLOR_CODE, current, amount))
-							self.Strings[i]:SetText(format("%s\n%s %s%d/%d|r", self.Strings[i]:GetText(), currencyInfo.name, GREEN_FONT_COLOR_CODE, currencyInfo.quantity, amount))
+				Mulgore Portal
+				/dump UnitPosition("player")
+				x, y = -1472, 196
+				/dump format("%.5f x %.5f", C_Map.GetPlayerMapPosition(C_Map.GetBestMapForUnit("player"), "player"):GetXY())
+				x, y= .36852, .35870
+			]]--
+			if
+				(uiMapID == 37 or uiMapID == 88 or uiMapID == 7) -- Elwynn Forrest // Thunder Bluff // Mulgore
+			and
+				subZoneMatch -- Goldshire or Lion's Pride Inn // Thunder Bluff, Any of the Rises or The Cat and the Shaman // Special handling for Mulgore
+			then
+				if db.isPTR then -- PTR Debug
+					local position = C_Map.GetPlayerMapPosition(uiMapID, "player")
+					local areaID = C_MapExplorationInfo.GetExploredAreaIDsAtPosition(uiMapID, position)
+					Debug("-- Check areaIDs")
+					if areaID then
+						for i = 1, #areaID do
+							Debug("  -- ", i, "/", #areaID, "-", areaID[i], C_Map.GetAreaInfo(areaID[i]))
 						end
 					end
-				elseif questData.items and next(questData.items) then
-					for id, amount in pairs(questData.items) do
-						local name = self:GetItemName(id)
-						local current = GetItemCount(id)
+				end
 
-						if name then
-							if current < amount then
-								self.Strings[i]:SetText(format("%s\n%s %s%d/%d|r", self.Strings[i]:GetText(), name, RED_FONT_COLOR_CODE, current, amount))
+				if uiMapID == 7 then -- Weird stuff happens in Mulgore
+					return _isPortalInRange(-1472, 196, UnitPosition("player"))
+				end
+
+				return true
+			end
+		end
+
+		return false
+	end
+
+	-- UpdateItemButtons
+	local function _onClickNoop(self, button, down) return end -- No Operation
+
+	local function _onClickUseItem(self, button, down) -- Find item from your backbags and use it
+		if (not InCombatLockdown()) then
+			local itemId = self.itemId
+			local bag, slot = 0, 0
+			for bag = Enum.BagIndex.Backpack, Constants.InventoryConstants.NumBagSlots do -- 0, 4
+				for slot = 1, C_Container.GetContainerNumSlots(bag) do
+					if C_Container.GetContainerItemID(bag, slot) == itemId then
+						C_Container.UseContainerItem(bag, slot)
+						return
+					end
+				end
+			end
+		end
+	end
+
+	function f:UpdateItemButtons() -- Update turnInItem-buttons
+		Debug("UpdateItemButtons")
+		for i = 1, #itemButtonOrder do
+			local button = self["itemButton" .. i]
+			local itemId = button.itemId
+			local questId = turnInItems[itemId]
+			local itemLink = button.itemLink
+
+			if questId and C_QuestLog.IsQuestFlaggedCompleted(questId) or (db.debug and db.isPTR and i == 6) then -- Quest Done
+				Debug("- %d QuestDone", i)
+				button.tooltipText = L.Quest_QuestDone
+				button.itemStatus = 1
+
+			elseif questId and C_QuestLog.IsOnQuest(questId) or (db.debug and db.isPTR and i == 7) then -- On Quest
+				Debug("- %d OnQuest", i)
+				button.tooltipText = L.Quest_QuestReady
+				button.itemStatus = 2
+
+			elseif questId and GetItemCount(itemId) > 0 or (db.debug and db.isPTR and i == 8) then -- Item, not on Quest (yet)
+				Debug("- %d ItemNoQuest", i)
+				button.tooltipText = L.Quest_QuestReadyToAccept
+				button.itemStatus = 3
+
+			else -- No item
+				Debug("- %d NoItem", i)
+				button.tooltipText = string.format(L.Quest_QuestNoItem, itemLink and itemLink or itemId and itemId or "n/a")
+				button.itemStatus = 4
+
+			end
+
+			if button.itemStatus == 3 then -- Item, not on Quest
+				button:SetScript("OnClick", _onClickUseItem)
+			else
+				button:SetScript("OnClick", _onClickNoop)
+			end
+			button.buttonIcon:SetVertexColor(buttonVertices[button.itemStatus][1], buttonVertices[button.itemStatus][2], buttonVertices[button.itemStatus][3])
+		end
+	end
+
+	-- UpdateTextLines
+	local cacheItemNames = {}
+	f.cacheItemNames = cacheItemNames -- Debug
+
+	local numTextLinesWaitingForServerData = 0
+	local textLinesWaitingForServerData = {}
+
+	local activeStrings = {}
+	local function poolReset(_, stringObject)
+		stringObject:Hide()
+	end
+	local stringPool = CreateFontStringPool(f, "OVERLAY", 0, "GameFontHighlight", poolReset)
+	local function _getTextLine(textFormat, ...)
+		local s = stringPool:Acquire()
+		s:SetFormattedText(textFormat, ...)
+		activeStrings[#activeStrings + 1] = s
+		s:SetParent(f.Container)
+		if #activeStrings == 1 then
+			s:SetPoint("TOP", 0, -6)
+		else
+			s:SetPoint("TOP", activeStrings[#activeStrings - 1], "BOTTOM", 0, -6)
+		end
+		s:Show()
+
+		return
+	end
+	local delayLock = false
+	local function _delayedUpdateTextLines()
+		if not delayLock then
+			delayLock = true
+			C_Timer.After(0, f.UpdateTextLines) -- Wait until next frame
+		end
+	end
+
+	function f:UpdateTextLines() -- Update textLine to reflect Quest progress
+		Debug("UpdateTextLines")
+		delayLock = false
+
+		-- Release previously used FontStrings
+		Debug(" -> PRE:", #activeStrings)
+		for s = #activeStrings, 1, -1 do
+			stringPool:Release(activeStrings[s])
+			activeStrings[s] = nil
+		end
+		Debug(" -> POST:", #activeStrings)
+
+		-- Iterate Professions
+		for i = 1, #ProfData do
+			local prof = ProfData[i]
+
+			if prof.professionId then
+				Debug("- %d %s (%d) %d/%d", i, prof.name, prof.professionId, prof.skillLevel, prof.maxSkillLevel)
+				local questData = ProfessionQuestData[prof.professionId]
+
+				local showThisProfession = true
+				local skillLineText, questItemText = "", ""
+
+				if db.HideMax and prof.skillLevel == prof.maxSkillLevel then -- Skip if Maxed professions
+					showThisProfession = false
+				elseif C_QuestLog.IsQuestFlaggedCompleted(questData.questId) then -- Quest already done
+					skillLineText = string.format("%d / %d\n%s", prof.skillLevel, prof.maxSkillLevel, GREEN_FONT_COLOR:WrapTextInColorCode(L.Quest_QuestDone))
+				elseif prof.skillLevel >= minimumSkillRequired then -- Quest not done, enough skill to get the quest
+					skillLineText = string.format("%d / %d", prof.skillLevel, prof.maxSkillLevel)
+
+					if (prof.maxSkillLevel - prof.skillLevel) < 5 and prof.maxSkillLevel < currentSkillCap then -- In danger to waste skillpoints by capping
+						skillLineText = ORANGE_FONT_COLOR:WrapTextInColorCode(skillLineText)
+					end
+
+					if prof.professionId == 794 then -- Archaeology
+						for currencyId, requiredAmount in pairs(questData.questCurrency) do
+							local currencyInfo = C_CurrencyInfo.GetCurrencyInfo(currencyId)
+							if currencyInfo.quantity < requiredAmount then -- Not enough currency
+								questItemText = currencyInfo.name .. RED_FONT_COLOR:WrapTextInColorCode(string.format(" %d / %d", currencyInfo.quantity, requiredAmount))
 							else
-								self.Strings[i]:SetText(format("%s\n%s %s%d/%d|r", self.Strings[i]:GetText(), name, GREEN_FONT_COLOR_CODE, current, amount))
-							end
-						else -- Fired before everything is cached, try again later
-							if DEBUG then Debug("-- No GetItemInfo, rebouncing:", id) end -- Debug
-
-							C_Timer.After(2, self.UpdateQuests)
-							return nil
-						end
-					end
-				else
-					self.Strings[i]:SetText(format("%s\n%s%s|r", self.Strings[i]:GetText(), GREEN_FONT_COLOR_CODE, L.NoItemsNeeded))
-				end
-			else -- Skill under 75
-				local tmpTbl = { GetProfessions() }
-				if not retry and i < 6 then
-					self:UpdateProfession(i, tmpTbl[i])
-
-					if DEBUG then Debug("Retrying...") end -- Debug
-					self:UpdateQuests(true)
-					--break
-				end
-
-				if db.HideLow then
-					self.Strings[i]:SetText(nil)
-					self.Lines[i]:Hide()
-				else
-					self.Strings[i]:SetText(format("|T%s:0|t %s - %s%d/%d|r\n%s%s|r", profession.icon, profession.name, RED_FONT_COLOR_CODE, profession.skillLevel, profession.maxSkillLevel, RED_FONT_COLOR_CODE, L.SkillTooLow))
-				end
-			end
-
-		else -- No profession
-			if not retry and i < 6 then
-				local tmpTbl = { GetProfessions() }
-				self:UpdateProfession(i, tmpTbl[i])
-
-				if DEBUG then Debug("Retrying...") end -- Debug
-				self:UpdateQuests(true)
-				break
-			end
-
-			self.Strings[i]:SetText(nil)
-			self.Lines[i]:Hide()
-		end
-	end
-
-	if db.PetBattle then
-		self.Strings[7]:Show()
-		self.Lines[7]:Show()
-		local PetBattleIcon = 631719 -- 319458
-		local PBQuest1Done = C_QuestLog.IsQuestFlaggedCompleted(32175) -- Jeremy Feasel - Darkmoon Pet Battle!
-		local PBQuest2Done = C_QuestLog.IsQuestFlaggedCompleted(36471) -- Christoph VonFeasel - A New Darkmoon Challenger!
-		local PBQuestCounter = 0
-		if PBQuest1Done then PBQuestCounter = PBQuestCounter + 1 end
-		if PBQuest2Done then PBQuestCounter = PBQuestCounter + 1 end
-		self.Strings[7]:SetFormattedText("|T%s:0|t %s\n%s%d/2|r %s", PetBattleIcon, SHOW_PET_BATTLES_ON_MAP_TEXT, PBQuestCounter == 2 and GREEN_FONT_COLOR_CODE or PBQuestCounter == 1 and ORANGE_FONT_COLOR_CODE or RED_FONT_COLOR_CODE, PBQuestCounter, string.format(L.PetBattlesDone, SHOW_PET_BATTLES_ON_MAP_TEXT, L.Done))
-	else
-		self.Strings[7]:SetText(nil)
-		self.Lines[7]:Hide()
-	end
-
-	if db.DeathMetalKnight then
-		self.Strings[8]:Show()
-		self.Lines[8]:Show()
-		local DeathMetalKnightIcon = 236362
-		local DMKQuestDone = C_QuestLog.IsQuestFlaggedCompleted(47767) -- Death Metal Knight
-		self.Strings[8]:SetFormattedText("|T%s:0|t %s\n%s%s|r", DeathMetalKnightIcon, L.DeathMetalKnight, DMKQuestDone and GREEN_FONT_COLOR_CODE or RED_FONT_COLOR_CODE, DMKQuestDone and L.QuestDone or L.QuestNotDone)
-	else
-		self.Strings[8]:SetText(nil)
-		self.Lines[8]:Hide()
-	end
-
-	if db.TestYourStrength then
-		self.Strings[9]:Show()
-		self.Lines[9]:Show()
-		local TestYourStrengthIcon = 136101
-		local TYSQuestDone = C_QuestLog.IsQuestFlaggedCompleted(29433) -- Test Your Strenght
-		local TYSProgress, _, _, TYSCount, TYSCap = GetQuestObjectiveInfo(29433, 1, false)
-
-		self.Strings[9]:SetFormattedText("|T%s:0|t %s\n%s%s|r", TestYourStrengthIcon, L.TestYourStrength, TYSQuestDone and GREEN_FONT_COLOR_CODE or TYSCount == TYSCap and ORANGE_FONT_COLOR_CODE or RED_FONT_COLOR_CODE, TYSQuestDone and L.QuestDone or TYSProgress or L.QuestNotDone)
-	else
-		self.Strings[9]:SetText(nil)
-		self.Lines[9]:Hide()
-	end
-
-	if db.FadedTreasureMap then
-		self.Strings[10]:Show()
-		self.Lines[10]:Show()
-		local FadedTreasureMapIcon = 237388
-		local FTMName = self:GetItemName(126930) or "n/a"
-		local FTMQuestDone = C_QuestLog.IsQuestFlaggedCompleted(38934) -- Silas' Secret Stash
-		self.Strings[10]:SetFormattedText("|T%s:0|t %s\n%s%s|r", FadedTreasureMapIcon, FTMName, FTMQuestDone and GREEN_FONT_COLOR_CODE or RED_FONT_COLOR_CODE, FTMQuestDone and L.QuestDone or L.QuestNotDone)
-	else
-		self.Strings[10]:SetText(nil)
-		self.Lines[10]:Hide()
-	end
-
-	if self.Strings[1]:GetText() == nil and self.Strings[2]:GetText() == nil and self.Strings[3]:GetText() == nil and
-	self.Strings[4]:GetText() == nil and self.Strings[5]:GetText() == nil and self.Strings[6]:GetText() == nil then
-		self.Strings[1]:SetText(format("%s%s|r", RED_FONT_COLOR_CODE, L.NoProfessions))
-	end
-
-	for i = 2, #self.Strings do -- First one should be always filled, anchor others to previous filled String
-		local j = i - 1
-		while j > 0 do
-			if self.Strings[j]:GetText() ~= nil then -- Found previous String with text, attach to it and break while-loop
-				self.Strings[i]:SetPoint("TOP", self.Strings[j], "BOTTOM", 0, -4)
-				break
-			end
-			j = j - 1
-		end
-	end
-
-	if DEBUG then Debug("- Update Quests") end -- Debug
-
-	Resize()
-end
-
-function f:BuyItems() -- Automaticly buy quest items for players professions
-	local function getID(itemLink)
-		local id = tonumber(strmatch(itemLink, "item:(%d+)"))
-
-		return id
-	end
-
-	if not db.AutoBuy then return end
-
-	if DEBUG then Debug("- Buy Items") end
-
-	local totalCost = 0
-
-	for i = 1, #ProfData do
-		local profession = ProfData[i]
-
-		--if profession.id and profession.id ~= 794 and profession.skillLevel >= 75 then
-		if profession.id and profession.id ~= 794 and profession.skillLevel >= 1 then
-			-- Profession is found (and enough skill) but it is not Archaeology (they use currency instead of item)
-
-			local questData = ProfIDs[profession.id]
-
-			--if not C_QuestLog.IsQuestFlaggedCompleted(questData.quest) and questData.items and next(questData.items) then
-			if not C_QuestLog.IsQuestFlaggedCompleted(questData.quest) and questData.items and type(questData.items) == "table" then
-				-- Profession quest not completed and requires items
-
-				for id, amount in pairs(questData.items) do
-					local needed = amount - GetItemCount(id)
-
-					for j = 1, GetMerchantNumItems() do
-						local maxStack = GetMerchantItemMaxStack(j)
-						local iName, _, price, stackSize, numAvailable = GetMerchantItemInfo(j)
-						local link = GetMerchantItemLink(j)
-
-						if DEBUG and link == nil then Debug("- nil link %d %s", tonumber(j), tostring(iName)) end
-
-						if link and getID(link) == id then -- Found item we need, buying it
-
-							if numAvailable ~= -1 then -- -1 -> infinite amount available
-								needed = math.min(needed, numAvailable)
-							end
-
-							-- If we need more than maxStack, buy maxStack if available and can afford it
-							while needed > maxStack and (numAvailable >= maxStack or numAvailable == -1) and GetMoney() >= (price/stackSize * maxStack) do
-								BuyMerchantItem(j, floor(maxStack))
-								needed = needed - maxStack
-
-								totalCost = totalCost + (price/stackSize * maxStack)
-
-								self:Print(L.AutoBuy, maxStack, self:GetItemName(id))
-							end
-
-							-- Buy what we need if available and can afford it
-							if needed > 0 and (numAvailable >= needed or numAvailable == -1) and GetMoney() >= (price/stackSize * needed) then
-								BuyMerchantItem(j, floor(needed))
-
-								totalCost = totalCost + (price/stackSize * needed)
-
-								self:Print(L.AutoBuy, needed, self:GetItemName(id))
+								questItemText = currencyInfo.name .. GREEN_FONT_COLOR:WrapTextInColorCode(string.format(" %d / %d", currencyInfo.quantity, requiredAmount))
 							end
 						end
+					elseif questData.questItems and next(questData.questItems) then -- This quest requires items
+						for itemId, requiredAmount in pairs(questData.questItems) do
+							local itemCount = GetItemCount(itemId)
+							local itemName
+							if cacheItemNames[itemId] then
+								itemName = cacheItemNames[itemId]
+							else -- itemName not yet cached from UpdateProfessions, keep waiting
+								if (not textLinesWaitingForServerData[itemId]) then
+									numTextLinesWaitingForServerData = numTextLinesWaitingForServerData + 1
+									textLinesWaitingForServerData[itemId] = 1
+									Debug("  -- Waiting for ContinueOnItemLoad: %d | Total: %d", itemId, numTextLinesWaitingForServerData) -- Debug
+								else
+									textLinesWaitingForServerData[itemId] = textLinesWaitingForServerData[itemId] + 1
+									Debug("  -- STILL Waiting for ContinueOnItemLoad: %d x %d | Total: %d", itemId, textLinesWaitingForServerData[itemId], numTextLinesWaitingForServerData) -- Debug
+								end
+							end
+
+							if itemName then
+								if itemCount < requiredAmount then -- Not enough items
+									questItemText = questItemText .. "\n" .. itemName .. RED_FONT_COLOR:WrapTextInColorCode(string.format(" %d / %d", itemCount, requiredAmount))
+								else
+									questItemText = questItemText .. "\n" .. itemName .. GREEN_FONT_COLOR:WrapTextInColorCode(string.format(" %d / %d", itemCount, requiredAmount))
+								end
+							end
+						end
+					else -- Quest doesn't require items
+						questItemText = GREEN_FONT_COLOR:WrapTextInColorCode(L.Profession_NoItemsNeeded)
+					end
+				else -- Skill under minimum requirement
+					if db.HideLow then
+						showThisProfession = false
+					else
+						skillLineText = RED_FONT_COLOR:WrapTextInColorCode(string.format("%d / %d\n%s", prof.skillLevel, prof.maxSkillLevel, L.Profession_SkillTooLow))
+					end
+				end
+
+				if showThisProfession then
+					_getTextLine("|T%d:0|t %s - %s\n%s", prof.icon, prof.name, skillLineText, strtrim(questItemText))
+				end
+			else -- No profession
+				Debug("- %d - !!! No profession !!!", i)
+				if (not db.HideLow) then
+					_getTextLine("%s\n\n", RED_FONT_COLOR:WrapTextInColorCode(L.Profession_NoProfessions))
+				end
+			end
+		end
+
+		-- Additional Quests
+		if db.PetBattle then
+			local questIcon = additionalQuests.PetBattle.Icon
+			local questCount, questMaxCount = 0, #additionalQuests.PetBattle.QuestIdTable
+			for _, questId in ipairs(additionalQuests.PetBattle.QuestIdTable) do
+				if C_QuestLog.IsQuestFlaggedCompleted(questId) then
+					questCount = questCount + 1
+				end
+			end
+
+			local petBattleTextColor = (questCount == questMaxCount) and GREEN_FONT_COLOR or (questCount > 0) and ORANGE_FONT_COLOR or RED_FONT_COLOR
+			local petBattleQuestTextLine = petBattleTextColor:WrapTextInColorCode(string.format("%d / %d", questCount, questMaxCount))
+
+			Debug("- PetBattle - %s %d / %d", SHOW_PET_BATTLES_ON_MAP_TEXT, questCount, questMaxCount)
+			_getTextLine("|T%d:0|t %s\n%s %s %s\n", questIcon, SHOW_PET_BATTLES_ON_MAP_TEXT, strtrim(petBattleQuestTextLine), SHOW_PET_BATTLES_ON_MAP_TEXT, L.Quest_ActivityDone)
+		end
+
+		if db.DeathMetalKnight then
+			local questId = additionalQuests.DeathMetalKnight.QuestId
+			local questIcon = additionalQuests.DeathMetalKnight.Icon
+			local questDone = C_QuestLog.IsQuestFlaggedCompleted(questId)
+
+			local questTitle = L.QuestTitleFix_DeathMetalKnight -- API doesn't return questName for this hidden quest
+			--[[
+			local questTitle = C_QuestLog.GetTitleForQuestID(questId)
+			if (not questTitle) and (not questDataRequests[questId]) then -- Request only once
+				C_QuestLog.RequestLoadQuestByID(questId)
+				questDataRequests[questId] = true
+			end
+			]]
+			local textColor = questDone and GREEN_FONT_COLOR or RED_FONT_COLOR
+			local questTextLine = textColor:WrapTextInColorCode(questDone and L.Quest_QuestDone or L.Quest_QuestNotDone)
+
+			Debug("- DeathMetalKnight - %s %s", questTitle or "DMKtitle n/a", tostring(questDone))
+			_getTextLine("|T%d:0|t %s\n%s", questIcon, questTitle or "DMKtitle n/a", strtrim(questTextLine))
+		end
+
+		if db.TestYourStrength then
+			local questId = additionalQuests.TestYourStrength.QuestId
+			local questIcon = additionalQuests.TestYourStrength.Icon
+			local questDone = C_QuestLog.IsQuestFlaggedCompleted(questId)
+			local questProgressText, _, _, fulfilled, required = GetQuestObjectiveInfo(questId, 1, false)
+
+			local questTitle = C_QuestLog.GetTitleForQuestID(questId)
+			if (not questTitle) and (not questDataRequests[questId]) then -- Request only once
+				C_QuestLog.RequestLoadQuestByID(questId)
+				questDataRequests[questId] = true
+			end
+
+			local textColor = questDone and GREEN_FONT_COLOR or fulfilled == required and ORANGE_FONT_COLOR or RED_FONT_COLOR
+			local questTextLine = textColor:WrapTextInColorCode(questDone and L.Quest_QuestDone or questProgressText or L.Quest_QuestNotDone)
+
+			Debug("- TestYourStrength - %s %s (%s - %d / %d)", questTitle or "TYStitle n/a", tostring(questDone), tostring(questProgressText), tostring(fulfilled), tostring(required))
+			_getTextLine("|T%d:0|t %s\n%s", questIcon, questTitle or "TYStitle n/a", strtrim(questTextLine))
+		end
+
+		if db.FadedTreasureMap then
+			local questStartItemId = additionalQuests.FadedTreasureMap.StartItemId
+
+			local itemName
+			if cacheItemNames[questStartItemId] then
+				itemName = cacheItemNames[questStartItemId]
+			else -- itemName not yet cached from UpdateProfessions, keep waiting
+				if (not textLinesWaitingForServerData[questStartItemId]) then
+					numTextLinesWaitingForServerData = numTextLinesWaitingForServerData + 1
+					textLinesWaitingForServerData[questStartItemId] = 1
+					Debug("  -- Waiting for ContinueOnItemLoad: %d | Total: %d", questStartItemId, numTextLinesWaitingForServerData) -- Debug
+				else
+					textLinesWaitingForServerData[questStartItemId] = textLinesWaitingForServerData[questStartItemId] + 1
+					Debug("  -- STILL Waiting for ContinueOnItemLoad: %d x %d | Total: %d", questStartItemId, textLinesWaitingForServerData[questStartItemId], numTextLinesWaitingForServerData) -- Debug
+				end
+			end
+
+			local questId = additionalQuests.FadedTreasureMap.QuestId
+			local questIcon = additionalQuests.FadedTreasureMap.Icon
+			local questDone = C_QuestLog.IsQuestFlaggedCompleted(questId)
+			local textColor = questDone and GREEN_FONT_COLOR or RED_FONT_COLOR
+			local questTextLine = textColor:WrapTextInColorCode(questDone and L.Quest_QuestDone or L.Quest_QuestNotDone)
+
+			Debug("- FadedTreasureMap - %s %s", itemName or "FTMtitle n/a", tostring(questDone))
+			_getTextLine("|T%d:0|t %s\n%s", questIcon, itemName or "FTMtitle n/a", strtrim(questTextLine))
+		end
+
+		f.ContainerText:Hide() -- Hide this if it is still showing
+		f:Layout() -- Resize UI
+	end
+
+	-- UpdateProfessions
+	f.ProfData = ProfData -- Debug
+
+	local additionalQuestItemsDone = false
+
+	function f:UpdateProfessions()
+		Debug("UpdateProfessions")
+
+		local textLinesWaitingChanged = false
+		for index, professionIndex in ipairs({ GetProfessions() }) do -- prof1, prof2, archaeology, fishing, cooking
+			if professionIndex then
+				local name, icon, skillLevel, maxSkillLevel, _, _, skillLine = GetProfessionInfo(professionIndex)
+
+				if (not ProfData[index]) then
+					ProfData[index] = {
+						name = name,
+						icon = icon,
+						skillLevel = 0,
+						maxSkillLevel = 0,
+						professionId = skillLine
+					}
+				else
+					ProfData[index].skillLevel = 0
+					ProfData[index].maxSkillLevel = 0
+				end
+
+				if index ~= 3 then
+					for _, skillLineId in ipairs(ProfessionTradeSkillLines[skillLine]) do
+						local skillInfo = C_TradeSkillUI.GetProfessionInfoBySkillLineID(skillLineId)
+						if skillInfo and skillInfo.maxSkillLevel and skillInfo.maxSkillLevel > 0 then
+							ProfData[index].skillLevel = ProfData[index].skillLevel + skillInfo.skillLevel
+							ProfData[index].maxSkillLevel = ProfData[index].maxSkillLevel + skillInfo.maxSkillLevel
+						end
+
+					end
+
+					-- Cache itemNames of the items needed for this professions Quest
+					if ProfessionQuestData[skillLine].questItems and next(ProfessionQuestData[skillLine].questItems) then -- This quest requires items
+						for itemId in pairs(ProfessionQuestData[skillLine].questItems) do
+							if (not cacheItemNames[itemId]) then
+								local item = Item:CreateFromItemID(itemId)
+								item:ContinueOnItemLoad(function()
+									local itemName = item:GetItemName()
+									cacheItemNames[itemId] = itemName
+									if textLinesWaitingForServerData[itemId] then
+										numTextLinesWaitingForServerData = numTextLinesWaitingForServerData - 1
+										textLinesWaitingForServerData[itemId] = nil
+										textLinesWaitingChanged = true
+									end
+									Debug("  -- Caching: %s (%d) | Waiting: %d", itemName, itemId, numTextLinesWaitingForServerData) -- Debug
+									if (textLinesWaitingChanged) and numTextLinesWaitingForServerData == 0 then
+										--f:UpdateTextLines()
+										_delayedUpdateTextLines()
+									end
+								end)
+							end
+						end
+					end
+
+				else -- Archeology returns proper info without iterating skillLineIds
+					ProfData[index].skillLevel = skillLevel
+					ProfData[index].maxSkillLevel = maxSkillLevel
+				end
+				Debug("- %s (%d) %d/%d", name, skillLine, ProfData[index].skillLevel, ProfData[index].maxSkillLevel)
+			end
+		end
+
+		-----
+
+		if (not additionalQuestItemsDone) then -- Cache also questStartingItems from additionalQuests if we haven't done so yet
+			additionalQuestItemsDone = true
+			Debug("-> Caching questStartingItems from additionalQuests")
+			for _, questData in pairs(additionalQuests) do
+				if questData and questData.StartItemId then
+					if (not cacheItemNames[questData.StartItemId]) then
+						local item = Item:CreateFromItemID(questData.StartItemId)
+						item:ContinueOnItemLoad(function()
+							local itemName = item:GetItemName()
+							cacheItemNames[questData.StartItemId] = itemName
+							if textLinesWaitingForServerData[questData.StartItemId] then
+								numTextLinesWaitingForServerData = numTextLinesWaitingForServerData - 1
+								textLinesWaitingForServerData[questData.StartItemId] = nil
+								textLinesWaitingChanged = true
+							end
+							Debug("  -- Caching: %s (%d) | Waiting: %d", itemName, questData.StartItemId, numTextLinesWaitingForServerData) -- Debug
+							if (textLinesWaitingChanged) and numTextLinesWaitingForServerData == 0 then
+								--f:UpdateTextLines()
+								_delayedUpdateTextLines()
+							end
+						end)
 					end
 				end
 			end
 		end
+
+		-----
 	end
 
-	if totalCost > 0 then -- Total
-		self:Print("- - - - - - - - - - - - - - -")
-		self:Print(L.Total, GetCoinText(totalCost," "))
-	end
-end
+	function f:AutoBuyItems()
+		if (not db.AutoBuy) then return end
+		Debug("AutoBuyItems")
 
-function f:GetItemName(id, force) -- Returns items name from db if available, if not try to get it from server
-	if db.items[id] and db.items[id] ~= nil and not force then
-		return db.items[id]
-	else -- Item not in local DB or forced cache
-		local name = GetItemInfo(id)
+		local totalCost = 0
+		local receiptTitleForAutoBuyShown = false
 
-		if name then
-			db.items[id] = name
-			return name
+		for i = 1, #ProfData do
+			local prof = ProfData[i]
+
+			-- Check we have profession, we are at or above minimum skillLevel and the profession isn't Archaeology because it uses currency instead of items for turn in
+			if prof.professionId and prof.skillLevel >= minimumSkillRequired and prof.professionId ~= 794 then
+				Debug("%s (%d) %d", prof.name, prof.professionId, prof.skillLevel)
+				local questData = ProfessionQuestData[prof.professionId]
+
+				-- Quest not done, this quest requires items
+				if (not C_QuestLog.IsQuestFlaggedCompleted(questData.questId)) and questData.questItems and next(questData.questItems) then
+					for itemId, materialNeeds in pairs(questData.questItems) do
+						local buyCount = materialNeeds - GetItemCount(itemId)
+						Debug(" - Looking for %d x %d", buyCount, itemId)
+
+						if buyCount > 0 then -- We need to buy more of this item
+							for j = 1, GetMerchantNumItems() do
+								local itemLink = GetMerchantItemLink(j)
+
+								if itemLink and itemId == GetMerchantItemID(j) then -- Found item we want
+									local maxStack = GetMerchantItemMaxStack(j)
+									local itemName, _, itemPrice, itemQuantity, numAvailable = GetMerchantItemInfo(j)
+
+									if numAvailable ~= -1 then -- -1 == unlimited amount available
+										buyCount = math.min(buyCount, numAvailable) -- Check if there is enough for our needs, if not, we buy everything
+									end
+
+									-- Check if we need to buy stuff in full stacks and we can afford it
+									while buyCount >= maxStack and (numAvailable >= maxStack or numAvailable == -1) and GetMoney() >= (maxStack / itemQuantity * itemPrice) do
+										if (not db.isPTR) then -- PTR Debug
+											BuyMerchantItem(j, maxStack)
+										end
+										buyCount = buyCount - maxStack
+										totalCost = totalCost + (maxStack / itemQuantity * itemPrice)
+
+										Debug(" --> Buy (maxStack): %d x %s (%d) | Q: %d, P: %d, T: %d", maxStack, itemName, itemId, itemQuantity, itemPrice, (maxStack / itemQuantity * itemPrice))
+										if (not receiptTitleForAutoBuyShown) then
+											receiptTitleForAutoBuyShown = true
+											Print(L.Config_ExtraFeatures_AutoBuy)
+											Print("- - - - - - - - - - - - - - -")
+										end
+										Print("   %d x %s", maxStack, itemLink)
+									end
+
+									-- Buy smaller quantities of items if still needed and we can afford it
+									if buyCount > 0 and (numAvailable >= buyCount or numAvailable == -1) and GetMoney() >= (buyCount / itemQuantity * itemPrice) then
+										if (not db.isPTR) then -- PTR Debug
+											BuyMerchantItem(j, buyCount)
+										end
+										totalCost = totalCost + (buyCount / itemQuantity * itemPrice)
+
+										Debug(" --> Buy: %d x %s (%d) | Q: %d, P: %d, T: %d", buyCount, itemName, itemId, itemQuantity, itemPrice, (buyCount / itemQuantity * itemPrice))
+										if (not receiptTitleForAutoBuyShown) then
+											receiptTitleForAutoBuyShown = true
+											Print(L.Config_ExtraFeatures_AutoBuy)
+											Print("- - - - - - - - - - - - - - -")
+										end
+										Print("   %d x %s", buyCount, itemLink)
+									end
+								end
+							end
+						end
+					end
+				end
+			end
 		end
 
-		return nil
+		if totalCost > 0 then -- End Total
+			Debug("  -- Total: %d", totalCost)
+			Print("- - - - - - - - - - - - - - -")
+			Print(L.ChatMessage_AutoBuy_Total, GetCoinText(totalCost, " "))
+		end
 	end
-end
 
-SLASH_DMFQUEST1 = "/dmfquest"
-SLASH_DMFQUEST2 = "/dmfq"
+	-- Reset Settings
+	local function _resetSettings()
+		-- Reset back to Default Options
+		wipe(db)
+		initDB(db, dbDefaults)
 
-SlashCmdList.DMFQUEST = function(arg)
-	local arg = arg:trim()
-	if arg and arg ~= "" then -- arg
-		if arg == "config" then
-			if not SettingsPanel:IsShown() then
-				-- Open Config
-				f:Print(L.OpenConfig)
-				Settings.OpenToCategory(ADDON_NAME)
+		-- Apply Default Options
+		f:ClearAllPoints()
+		f:SetPoint((db.GrowDirection == 1) and "BOTTOMLEFT" or "TOPLEFT", UIParent, "BOTTOMLEFT", db.XPos, db.YPos) -- 0 = Down, 1 = Up
+
+		f.Background:SetVertexColor(db.FrameVertexColor[1], db.FrameVertexColor[2], db.FrameVertexColor[3])
+		f.CloseButton:GetNormalTexture():SetVertexColor(
+			blendColors(
+				{
+					{ db.FrameVertexColor[1], db.FrameVertexColor[2], db.FrameVertexColor[3], .5 },
+					{ 1, 1, 1, .5 }
+				}
+			)
+		)
+
+		f:UpdateTextLines()
+		f:UpdateItemButtons()
+		f:PLAYER_ENTERING_WORLD()
+	end
+
+
+--[[----------------------------------------------------------------------------
+	SlashHandler
+----------------------------------------------------------------------------]]--
+	SLASH_DMFQUESTNEXT1 = "/dmfquest"
+	SLASH_DMFQUESTNEXT2 = "/dmfq"
+
+	local SlashHandlers = {
+		["config"] = function()
+			if f.categoryId and Settings and Settings.OpenToCategory then
+				Debug("Config: NEW!")
+				Settings.OpenToCategory(f.categoryId)
+			elseif f.optionsFrame and InterfaceOptionsFrame_OpenToCategory then
+				Debug("Config: OLD!")
+				InterfaceOptionsFrame_OpenToCategory(f.optionsFrame)
+			else
+				Print("Something went wrong and you should let the author of the addon know with following information:", tostring(f.categoryId), tostring(f.optionsFrame), GetBuildInfo())
 			end
-		elseif arg == "pin" then
-			-- Change Pin status
-			pinIt = not pinIt
-			f:Print(L.PinningChanged, pinIt)
-			f:CheckPortalZone()
+		end,
+		["pin"] = function()
+			isFramePinned = not isFramePinned
+			Print(L.ChatMessage_Slash_PinningChanged, isFramePinned)
+			if (isFramePinned) then
+				f.TitleText:SetText(f.addonTitle .. " " .. L.FrameTitle_Pinned)
+				f:Show()
+			else
+				f.TitleText:SetText(f.addonTitle)
+			end
+		end,
+		["reset"] = function()
+			_resetSettings()
+		end,
+		["offset"] = function(offset)
+			if (offset ~= nil and tonumber(offset) == 0) then
+				db.UseTimeOffset = false
+				db.TimeOffsetValue = 0
+			else
+				db.UseTimeOffset = true
+				db.TimeOffsetValue = tonumber(offset) or 0
+			end
+			Print("Offset", db.UseTimeOffset, db.TimeOffsetValue)
+		end,
+		["debug"] = function() -- Debug stuff
+			db.debug = not db.debug
+			Print("Debug:", db.debug)
+		end,
+		["ptr"] = function() -- PTR stuff
+			db.isPTR = not db.isPTR
+			Print("PTR:", db.isPTR)
+			f:UpdateItemButtons()
+			f:UpdateTextLines()
+		end,
+		["check"] = function()
+			local uiMapID = C_Map.GetBestMapForUnit("player")
+			local currentCalendarTime = C_DateAndTime.GetCurrentCalendarTime()
+			local currentCalendarTimeString = string.format("Time Now: %d.%d.%d   %d:%d", currentCalendarTime.year, currentCalendarTime.month, currentCalendarTime.monthDay, currentCalendarTime.hour, currentCalendarTime.minute)
+			local offsetCalendarTime = _shiftTimeTables(currentCalendarTime)
+			local offsetCalendarTimeString = string.format("With Offset: %d.%d.%d   %d:%d (%s)", offsetCalendarTime.year, offsetCalendarTime.month, offsetCalendarTime.monthDay, offsetCalendarTime.hour, offsetCalendarTime.minute, db.UseTimeOffset and (db.TimeOffsetValue < 0 and "-" or "+" .. db.TimeOffsetValue) or "Offset Off")
+			currentCalendarTime.day = currentCalendarTime.monthDay
+			local currentEpoch = time(currentCalendarTime)
+			local currentEpochString = (f.startTime > 0 and f.endTime > 0) and string.format("%s <- You are here -> %s", _epochToHumanReadable(currentEpoch - f.startTime), _epochToHumanReadable(f.endTime - currentEpoch)) or "n/a"
 
-			if not f:IsShown() then -- Show Frame if not visible
+			Print(">", f.addonTitle, "/", f.initDone,
+				"\n  |   ",
+					"Zone:", f:CheckForPortalZone(), "/", tostring(uiMapID), "/", (uiMapID and subZoneAreaIDs[uiMapID]) and #subZoneAreaIDs[uiMapID] or "n/a",
+				"\n  |   ",
+					"DMF:", f:CheckForDMF(), "/", currentEpochString,
+				"\n  |   ",
+					currentCalendarTimeString,
+				"\n  |   ",
+					offsetCalendarTimeString
+			)
+		end,
+		["update"] = function()
+			f:UpdateItemButtons()
+			f:UpdateProfessions()
+			f:UpdateTextLines()
+		end,
+		--[[
+		["text"] = function()
+			if f.ContainerText:GetText() == "\n" .. ADDON_NAME .. " Loaded!\n\n" then
+				f.ContainerText:SetText(ADDON_NAME .. " Loaded!\n\n§1234567890+´+\n½!\"#¤%&/()=?`\n\nqwertyuiopå¨\nQWERTYUIOPÅ^\n\nasdfghjklöä'\nASDFGHJKLÖÄ*\n\n<zxcvbnm,.-\n>ZXCVBNM;:_")
+			else
+				f.ContainerText:SetText("\n" .. ADDON_NAME .. " Loaded!\n\n")
+			end
+			for s = #activeStrings, 1, -1 do
+				stringPool:Release(activeStrings[s])
+				activeStrings[s] = nil
+			end
+			f.ContainerText:Show()
+			f:Layout()
+		end,
+		]]
+		["grow"] = function()
+			if db.GrowDirection == 0 then
+				db.GrowDirection = 1
+			else
+				db.GrowDirection = 0
+			end
+			
+			db.XPos = f:GetLeft()
+			db.YPos = (db.GrowDirection == 1) and f:GetBottom() or f:GetTop() -- 0 = Down, 1 = Up
+
+			f:ClearAllPoints()
+			f:SetPoint((db.GrowDirection == 1) and "BOTTOMLEFT" or "TOPLEFT", UIParent, "BOTTOMLEFT", db.XPos, db.YPos) -- 0 = Down, 1 = Up
+
+			Print("Grow Direction:", (db.GrowDirection == 1) and "Up" or "Down")
+		end,
+		["lock"] = function()
+			db.FrameLock = not db.FrameLock
+			Print("Lock:", db.FrameLock)
+		end,
+		["test"] = function()
+			Print("TEST START:")
+			----------------------------------------------------------------------------------------------------
+			local uiMapID = C_Map.GetBestMapForUnit("player")
+			local subZone = GetMinimapZoneText() --GetSubZoneText()
+
+			local info = C_Map.GetMapInfo(uiMapID)
+			Print("- Map", uiMapID, info.name, info.mapType, subZone)
+
+			local position = C_Map.GetPlayerMapPosition(uiMapID, "player")
+			local areaID = C_MapExplorationInfo.GetExploredAreaIDsAtPosition(uiMapID, position)
+			Print("-- Check areaIDs")
+			if areaID then
+				for i = 1, #areaID do
+					Print("  -- ", i, "/", #areaID, "-", areaID[i], C_Map.GetAreaInfo(areaID[i]))
+				end
+			end
+			----------------------------------------------------------------------------------------------------
+			Print("TEST END!")
+		end
+	}
+
+	SlashCmdList.DMFQUESTNEXT = function(text)
+		local command, params = strsplit(" ", text, 2)
+
+		if SlashHandlers[command] then
+			SlashHandlers[command](params)
+		else
+			Debug("SlashHandler", tostring(command), tostring(params))
+			if f:IsShown() then
+				f:Hide()
+			else
 				f:Show()
 			end
-		elseif arg == "resetdb" then
-			-- Reset DB and reload UI
-			wipe(db)
-			ReloadUI()
-		elseif arg == "offset" then
-			local timeData = C_DateAndTime.GetCurrentCalendarTime()
-			local realmHours, realmMinutes = GetGameTime()
-			local localTime = date('*t')
-			local serverTimeOffset = realmHours - localTime.hour
-			if timeData.monthDay > localTime.day then
-				serverTimeOffset = serverTimeOffset + 24
-			elseif timeData.monthDay < localTime.day then
-				serverTimeOffset = serverTimeOffset - 24
+		end
+	end
+
+
+--[[----------------------------------------------------------------------------
+	DMFQuest Config
+		-- Frame
+		XPos = 275,
+		YPos = 275,
+		FrameLock = false,
+		GrowDirection = 1, -- 0 = Down, 1 = Up
+		FrameVertexColor = { 0, 1, 0 }, -- UI shade
+		-- Features
+		AutoBuy = true,
+		HideLow = false,
+		HideMax = false,
+		-- Quests
+		PetBattle = true,
+		DeathMetalKnight = true,
+		TestYourStrength = true,
+		FadedTreasureMap = true,
+		ShowItemRewards = true,
+		-- Time Offset
+		UseTimeOffset = false,
+		TimeOffsetValue = 0,
+		-- Development and Debug
+		dbVersion = 1, -- In case we need to change things in the future
+		debug = false, -- Debug output
+		isPTR = false, -- Change some values on PTR only
+----------------------------------------------------------------------------]]--
+local DMFQConfig = {
+	name = ADDON_NAME,
+	type = "group",
+	set = function(info, val)
+		--Print(" = C -> %s (%s -> %s)", info[#info], tostring(db[info[#info]]), tostring(val))
+		db[info[#info]] = val
+
+		local cat = info[1]
+		if cat == "FrameOptions" then
+			Debug(" = Config - updateFramePosition", info[#info], val)
+			f:ClearAllPoints()
+			f:SetPoint((db.GrowDirection == 1) and "BOTTOMLEFT" or "TOPLEFT", UIParent, "BOTTOMLEFT", db.XPos, db.YPos) -- 0 = Down, 1 = Up
+		elseif cat == "ExtraFeaturesOptions" or cat == "AdditionalQuestsandActivitiesOptions" then
+			Debug(" = Config - updateFrameContent", info[#info], val)
+			f:UpdateTextLines()
+			if info[#info] == "ShowItemRewards" then
+				Debug(" = Config -- ShowItemRewards")
+				f:UpdateItemButtons()
 			end
-
-			f:Print("Time offset:", serverTimeOffset < 0 and serverTimeOffset or "+"..serverTimeOffset, tostring(db.UseTimeOffset))
-		elseif arg == "checkzone" then
-			local check = f:CheckPortalZone()
-			f:Print("Zone Check:", tostring(check))
-		else
-			-- Error
-			f:Print(L.Syntax)
+		elseif cat == "MiscOptions" then
+			Debug(" = Config - updateTimeFrame", info[#info], val)
+			f:PLAYER_ENTERING_WORLD()
 		end
-	else -- No arg
-		if f:IsShown() then
-			eventFrame:UnregisterEvent("BAG_UPDATE")
-			eventFrame:UnregisterEvent("QUEST_ACCEPTED")
-			eventFrame:UnregisterEvent("QUEST_LOG_UPDATE")
-			--eventFrame:UnregisterEvent("MERCHANT_SHOW")
+	end,
+	get = function(info)
+		-- Print(" = C <-", info[#info])
+		return db[info[#info]]
+	end,
+	args = {
+		FrameOptions = {
+			order = 100,
+			name = L.Config_GroupHeader_Frame,
+			type = "group",
+			inline = true,
+			args = {
+				XPos = {
+					order = 10,
+					name = string.format(L.Config_Frame_Pos, "X-"),
+					desc = string.format(L.Config_Frame_Pos_Desc, "X-"),
+					type = "range",
+					min = 0,
+					max = math.floor(GetScreenWidth() + .5),
+					step = 1,
+					width = "double"
+				},
+				YPos = {
+					order = 20,
+					name = string.format(L.Config_Frame_Pos, "Y-"),
+					desc = string.format(L.Config_Frame_Pos_Desc, "Y-"),
+					type = "range",
+					min = 0,
+					max = math.floor(GetScreenHeight() + .5),
+					step = 1,
+					width = "double"
+				},
+				FrameLock = {
+					order = 30,
+					name = L.Config_Frame_FrameLock,
+					desc = L.Config_Frame_FrameLock_Desc,
+					type = "toggle",
+					width = "double"
+				},
+				GrowDirection = {
+					order = 40,
+					name = L.Config_Frame_GrowDirection,
+					desc = string.format(L.Config_Frame_GrowDirection_Desc, HUD_EDIT_MODE_SETTING_AURA_FRAME_ICON_DIRECTION_UP, HUD_EDIT_MODE_SETTING_AURA_FRAME_ICON_DIRECTION_DOWN),
+					type = "select",
+					values = {
+						[0] = HUD_EDIT_MODE_SETTING_AURA_FRAME_ICON_DIRECTION_DOWN,
+						[1] = HUD_EDIT_MODE_SETTING_AURA_FRAME_ICON_DIRECTION_UP
+					},
+					style = "radio"
+				},
+				FrameVertexColor = {
+					order = 50,
+					name = L.Config_Frame_TintingColor,
+					desc = L.Config_Frame_TintingColor_Desc,
+					type = "color",
+					hasAlpha = false,
+					set = function(info, r, g, b, a)
+						--Print(" = CC -> %s (%.2f %.2f %.2f -> %.2f %.2f %.2f %.2f)", info[#info], db[info[#info]][1], db[info[#info]][2], db[info[#info]][3], r, g, b, a)
+						db[info[#info]][1] = r
+						db[info[#info]][2] = g
+						db[info[#info]][3] = b
 
-			f:Hide()
-			f:Print(L.Hiding)
-			pinIt = false
-		else
-			eventFrame:RegisterEvent("BAG_UPDATE")
-			eventFrame:RegisterEvent("QUEST_ACCEPTED")
-			eventFrame:RegisterEvent("QUEST_LOG_UPDATE")
-			eventFrame:RegisterEvent("MERCHANT_SHOW")
-			eventFrame:RegisterEvent("MERCHANT_UPDATE")
-			eventFrame:RegisterEvent("MERCHANT_FILTER_ITEM_UPDATE")
-
-			f:Show()
-			f:Print(L.Showing)
-			--pinIt = true
-		end
-	end
-end
-
-
--------------------------------------------------------------------------------
--- DMFQuest Event Handler
--------------------------------------------------------------------------------
-eventFrame:SetScript("OnEvent", function(self, event, ...)
-	if DEBUG and self[event] then Debug(event, ...) end -- Debug
-
-	return self[event] and self[event](self, event, ...)
-end)
-
-function eventFrame:ADDON_LOADED(_, addon)
-	if addon ~= ADDON_NAME then return end
-	self:UnregisterEvent("ADDON_LOADED")
-
-	f:CheckDB()
-
-	db = DMFQConfig
-
-	self:RegisterEvent("SKILL_LINES_CHANGED") -- This is fired before PLAYER_LOGIN so it has to be Registered here
-	if IsLoggedIn() then
-		self:SKILL_LINES_CHANGED()
-		self:PLAYER_LOGIN()
-	else
-		self:RegisterEvent("PLAYER_LOGIN")
-	end
-
-	self.ADDON_LOADED = nil
-end
-
-function eventFrame:PLAYER_LOGIN()
-	self:UnregisterEvent("PLAYER_LOGIN")
-
-	self:RegisterEvent("ZONE_CHANGED_NEW_AREA")
-	self:RegisterEvent("ZONE_CHANGED")
-	self:RegisterEvent("ZONE_CHANGED_INDOORS")
-	self:RegisterEvent("PLAYER_ENTERING_WORLD")
-	self:RegisterEvent("QUEST_LOG_UPDATE") -- Will fire after reload ui or on normal login
-	self:RegisterEvent("TRADE_SKILL_LIST_UPDATE") -- We don't get all the information at once anymore, so request update when we open any of the TradeSkillUIs
-
-	-- Check DB items and try to Pre-cache these if not found
-	local _ = f:GetItemName(1645, true) -- Moonberry Juice
-	_ = f:GetItemName(30817, true) -- Simple Flour
-	_ = f:GetItemName(39354, true) -- Light Parchment
-	_ = f:GetItemName(6529, true) -- Shiny Bauble
-	_ = f:GetItemName(2320, true) -- Coarse Thread
-	_ = f:GetItemName(6260, true) -- Blue Dye
-	_ = f:GetItemName(2604, true) -- Red Dye
-	_ = f:GetItemName(126930, true) -- Faded Treasure Map
-
-	for _, itemID in pairs(turnInItems) do
-		_ = f:GetItemName(itemID)
-	end
-
-	f:CreateUI()
-
-	if db.XPos or db.YPos then
-		f:ClearAllPoints()
-		f:SetPoint("BOTTOMLEFT", db.XPos, db.YPos)
-	end
-
-	self.PLAYER_LOGIN = nil
-end
-
-do -- CheckPortalZone throttling
-	local throttling
-
-	local function DelayedUpdate()
-		throttling = nil
-
-		f:CheckPortalZone()
-	end
-
-	local function ThrottleUpdate()
-		if not throttling then
-			if DEBUG then Debug("- Throttling Check Portal Zone...") end -- Debug
-
-			C_Timer.After(0.5, DelayedUpdate)
-			throttling = true
-		end
-	end
-
-	eventFrame.ZONE_CHANGED_NEW_AREA = ThrottleUpdate
-	eventFrame.ZONE_CHANGED = ThrottleUpdate
-	eventFrame.ZONE_CHANGED_INDOORS = ThrottleUpdate
-	eventFrame.PLAYER_ENTERING_WORLD = ThrottleUpdate
-end
-
-do -- UpdateItems and UpdateQuests throttling
-	local throttling
-
-	local function DelayedUpdateItems()
-		throttling = nil
-
-		f:UpdateItems()
-		f:UpdateQuests()
-	end
-
-	local function ThrottleUpdateItems()
-		if not throttling then
-			if DEBUG then Debug("- Throttling Items and Quests Update...") end -- Debug
-
-			C_Timer.After(0.5, DelayedUpdateItems)
-			throttling = true
-		end
-	end
-
-	eventFrame.BAG_UPDATE = ThrottleUpdateItems
-	eventFrame.QUEST_ACCEPTED = ThrottleUpdateItems
-end
-
-function eventFrame:QUEST_LOG_UPDATE()
-	if not firstRunDone then
-		if DEBUG then Debug("- Query for Server data") end -- Debug
-
-		self:RegisterEvent("CALENDAR_UPDATE_EVENT_LIST") -- Fired when Calendar data is available
-		C_Calendar.OpenCalendar() -- Requests calendar information from the server. Does not open the calendar frame.
-		-- Triggers CALENDAR_UPDATE_EVENT_LIST when your query has finished processing on the server and new calendar information is available.
-
-		firstRunDone = true -- Don't do this more than once
-	end
-
-	f:UpdateItems()
-	f:UpdateQuests()
-end
-
-function eventFrame:CALENDAR_UPDATE_EVENT_LIST() -- Check if DMF is available and notify Player in ChatFrame on login
-	if not firstRunDone then return end
-
-	self:UnregisterEvent("CALENDAR_UPDATE_EVENT_LIST")
-
-	if f:CheckDMF() then
-		f:Print(format(GREEN_FONT_COLOR_CODE.."=========================|r"))
-		f:Print(format(L.DMFWarning, GREEN_FONT_COLOR_CODE))
-		f:Print(format(GREEN_FONT_COLOR_CODE.."=========================|r"))
-	else
-		--self:Hide()
-	end
-
-	self.CALENDAR_UPDATE_EVENT_LIST = nil
-end
-
-function eventFrame:SKILL_LINES_CHANGED()
-	local primary, secondary, archaeology, fishing, cooking, firstAid = GetProfessions()
-	f:UpdateProfession(PRIMARY, primary)
-	f:UpdateProfession(SECONDARY, secondary)
-	f:UpdateProfession(ARCHAEOLOGY, archaeology)
-	f:UpdateProfession(FISHING, fishing)
-	f:UpdateProfession(COOKING, cooking)
-	--f:UpdateProfession(FIRSTAID, firstAid)
-
-	if firstRunDone then -- This is first time fired before PLAYER_LOGIN so we need some kind of safetynet
-		f:UpdateQuests()
-	end
-end
-
-function eventFrame:TRADE_SKILL_LIST_UPDATE() -- We are getting information from opening one of the profession TradeSkillUIs
-	self:SKILL_LINES_CHANGED()
-end
-
---[[function eventFrame:MERCHANT_SHOW()
-	-- Buy items only during DMF and when Frame is visible, except when it is DMF and you are on quest A Fizzy Fusion (Alchemy)
-	--f:Print("CheckDMF: %s, IsShown: %s, GetQuestLogIndexByID: %d", tostring(f:CheckDMF()), tostring(f:IsShown()), tonumber(GetQuestLogIndexByID(29506)))
-	--if not self:CheckDMF() or not self:IsShown() and not (self:CheckDMF() and GetQuestLogIndexByID(29506) > 0) then
-	--	return
-	--end
-	--
-	--self:BuyItems()
-
-	if f:CheckDMF() and (f:IsShown() or GetQuestLogIndexByID(29506) > 0) then
-		f:BuyItems()
-	end
-end]]
-
-do -- MERCHANT throttling
-	local throttling
-
-	local function DelayedBuyItems()
-		throttling = nil
-
-		--if f:CheckDMF() and (f:IsShown() or GetQuestLogIndexByID(29506) > 0) then
-		if f:CheckDMF() and (f:IsShown() or (C_QuestLog.GetLogIndexForQuestID(29506) and C_QuestLog.GetLogIndexForQuestID(29506) > 0)) then -- 29506 = A Fizzy Fusion
-			f:BuyItems()
-		end
-	end
-
-	local function ThrottleBuyItems()
-		if not throttling then
-			if DEBUG then Debug("- Throttling Buy Items...") end -- Debug
-
-			C_Timer.After(1, DelayedBuyItems)
-			throttling = true
-		end
-	end
-
-	eventFrame.MERCHANT_SHOW = ThrottleBuyItems
-	eventFrame.MERCHANT_UPDATE = ThrottleBuyItems
-	eventFrame.MERCHANT_FILTER_ITEM_UPDATE = ThrottleBuyItems
-end
-
-function eventFrame:QUEST_DETAIL()
-	if not QuestFrame:IsVisible() then return end
-
-	--self:UnregisterEvent("QUEST_PROGRESS")
-
-	local openID = GetQuestID()
-	for questID, _ in pairs(turnInItems) do -- Don't auto-accept any other quests than turn-in items
-		if questID == openID then
-			AcceptQuest()
-			return
-		end
-	end
-end
-
-
--------------------------------------------------------------------------------
--- DMFQuest Config
--------------------------------------------------------------------------------
-panel = CreateFrame("Frame", ADDON_NAME.."Options", SettingsPanel)
-panel.name = ADDON_NAME
-InterfaceOptions_AddCategory(panel)
-panel:Hide()
-
-panel:SetScript("OnShow", function()
-	local function CreatePanel(name, labelText)
-		local panelBackdrop = {
-			bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], tile = true, tileSize = 16,
-			edgeFile = [[Interface\Tooltips\UI-Tooltip-Border]], edgeSize = 16,
-			insets = { left = 5, right = 5, top = 5, bottom = 5 }
+						
+						f.Background:SetVertexColor(r, g, b)
+						f.CloseButton:GetNormalTexture():SetVertexColor(
+							blendColors(
+								{
+									{ r, g, b, .5 },
+									{ 1, 1, 1, .5 }
+								}
+							)
+						)
+					end,
+					get = function(info)
+						local r, g, b = db[info[#info]][1], db[info[#info]][2], db[info[#info]][3]
+						--Print(" = CC <-", r, g, b)
+						return r, g, b, 1
+					end,
+					width = "double"
+				}
+			}
+		},
+		ExtraFeaturesOptions = {
+			order = 200,
+			name = L.Config_GroupHeader_ExtraFeatures,
+			type = "group",
+			inline = true,
+			args = {
+				AutoBuy = {
+					order = 10,
+					name = L.Config_ExtraFeatures_AutoBuy,
+					desc = L.Config_ExtraFeatures_AutoBuy_Desc,
+					type = "toggle",
+					width = 1.5
+				},
+				HideLow = {
+					--	https://www.wowhead.com/news=318875/darkmoon-faire-november-2020-skill-requirement-removed-from-profession-quests
+					--	----------------------------------------------------------------------------------------------------
+					--	In the Shadowlands pre-patch, the 75 skill requirement has been removed from Darkmoon Faire
+					--	profession quests. You now only need to know a minimum of level 1, and completing the quest still
+					--	adds points to the highest expansion's profession level known.
+					--	----------------------------------------------------------------------------------------------------
+					order = 20,
+					name = L.Config_ExtraFeatures_HideLow,
+					desc = L.Config_ExtraFeatures_HideLow_Desc,
+					type = "toggle",
+					width = 1.5,
+					hidden = true
+				},
+				HideMax = {
+					order = 30,
+					name = L.Config_ExtraFeatures_HideMax,
+					desc = L.Config_ExtraFeatures_HideMax_Desc,
+					type = "toggle",
+					width = 1.5
+				}
+			}
+		},
+		AdditionalQuestsandActivitiesOptions = {
+			order = 300,
+			name = L.Config_GroupHeader_AdditionalQuests,
+			type = "group",
+			inline = true,
+			args = {
+				PetBattle = {
+					order = 10,
+					name = L.Config_Activity_PetBattle,
+					desc = L.Config_Activity_PetBattle_Desc,
+					type = "toggle",
+					width = 1.5
+				},
+				DeathMetalKnight = {
+					order = 20,
+					name = L.QuestTitleFix_DeathMetalKnight,
+					desc = string.format(L.Config_Activity_DeathMetalKnight_Desc, ORANGE_FONT_COLOR:WrapTextInColorCode(L.QuestTitleFix_DeathMetalKnight)),
+					type = "toggle",
+					width = 1.5
+				},
+				TestYourStrength = {
+					order = 30,
+					name = C_QuestLog.GetTitleForQuestID(additionalQuests.TestYourStrength.QuestId) or L.QuestTitleFix_TestYourStrength,
+					desc = string.format(L.Config_Activity_TestYourStrength_Desc, ORANGE_FONT_COLOR:WrapTextInColorCode(C_QuestLog.GetTitleForQuestID(additionalQuests.TestYourStrength.QuestId) or L.QuestTitleFix_TestYourStrength)),
+					type = "toggle",
+					width = 1.5
+				},
+				FadedTreasureMap = {
+					order = 40,
+					name = cacheItemNames[additionalQuests.FadedTreasureMap.StartItemId] or L.QuestTitleFix_FadedTreasureMap,
+					desc = string.format(L.Config_Activity_FadedTreasureMap_Desc, ORANGE_FONT_COLOR:WrapTextInColorCode(cacheItemNames[additionalQuests.FadedTreasureMap.StartItemId] or L.QuestTitleFix_FadedTreasureMap)),
+					type = "toggle",
+					width = 1.5
+				},
+				ShowItemRewards = {
+					order = 50,
+					name = L.Config_Activity_ShowItemRewards,
+					desc = L.Config_Activity_ShowItemRewards_Desc,
+					type = "toggle",
+					width = 1.5
+				}
+			}
+		},
+		MiscOptions = {
+			order = 400,
+			name = MISCELLANEOUS,
+			type = "group",
+			inline = true,
+			args = {
+				UseTimeOffset = {
+					order = 10,
+					name = L.Config_Misc_UseTimeOffset,
+					desc = L.Config_Misc_UseTimeOffset_Desc,
+					type = "toggle",
+					width = 1.5
+				},
+				TimeOffsetValue = {
+					order = 20,
+					name = L.Config_Misc_TimeOffsetValue,
+					desc = L.Config_Misc_TimeOffsetValue_Desc,
+					type = "range",
+					min = -24,
+					max = 24,
+					step = 1,
+					disabled = function()
+						return (not db.UseTimeOffset)
+					end,
+					width = 1.5
+				},
+				TimeNow = {
+					order = 30,
+					name = function()
+						--[[
+						TIMEMANAGER_TOOLTIP_REALMTIME = "Realm time:"
+						TIME_LABEL = "Time:"
+						]]
+						local currentCalendarTime = C_DateAndTime.GetCurrentCalendarTime()
+						local currentCalendarTimeString = string.format("%s: %.2d.%.2d.%.2d   %.2d:%.2d", TIMEMANAGER_TOOLTIP_REALMTIME, currentCalendarTime.year, currentCalendarTime.month, currentCalendarTime.monthDay, currentCalendarTime.hour, currentCalendarTime.minute)
+						local offsetCalendarTime = _shiftTimeTables(currentCalendarTime)
+						local offsetCalendarTimeString = string.format("%s: %.2d.%.2d.%.2d   %.2d:%.2d (%s)", L.Config_Misc_WithOffset, offsetCalendarTime.year, offsetCalendarTime.month, offsetCalendarTime.monthDay, offsetCalendarTime.hour, offsetCalendarTime.minute, db.UseTimeOffset and (db.TimeOffsetValue < 0 and "-" or "+" .. db.TimeOffsetValue) or L.Config_Misc_TimeOffsetOff)
+						return currentCalendarTimeString .. "\n" .. offsetCalendarTimeString
+					end,
+					type = "description",
+					width = "full",
+					fontSize = "medium",
+					image = "Interface/Store/Perks",
+					imageCoords = { 0.640625, 0.669921875, 0.2421875, 0.2568359375 }
+				}
+			}
+		},
+		DebugOptions = {
+			order = 500,
+			name = BINDING_HEADER_DEBUG, -- "Debug"
+			type = "group",
+			inline = true,
+			args = {
+				debug = {
+					order = 10,
+					name = "Debug",
+					desc = "Enable Debugging",
+					type = "toggle",
+					width = 1.5
+				},
+				isPTR = {
+					order = 20,
+					name = "isPTR",
+					desc = "Enable PTR-mode for debugging",
+					type = "toggle",
+					width = 1.5
+				}
+			},
+			hidden = function()
+				return (not db.debug)
+			end
+		},
+		ResetDB = {
+			order = 1000,
+			name = RESET_ALL_BUTTON_TEXT, -- "Reset All"
+			desc = RESET_TO_DEFAULT, -- "Reset To Default"
+			type = "execute",
+			func = _resetSettings,
+			confirm = true,
+			confirmText = CONFIRM_RESET_SETTINGS -- "Do you want to reset all settings to their defaults? This will immediately apply all settings."
 		}
+	}
+}
 
-		local frame = CreateFrame("Frame", name, panel, BackdropTemplateMixin and "BackdropTemplate")
-		frame:SetBackdrop(panelBackdrop)
-		frame:SetBackdropColor(0.06, 0.06, 0.06, 0.4)
-		frame:SetBackdropBorderColor(0.6, 0.6, 0.6, 1)
+local AceConfig = LibStub("AceConfig-3.0")
+AceConfig:RegisterOptionsTable(ADDON_NAME, DMFQConfig)
+f.optionsFrame, f.categoryId = LibStub("AceConfigDialog-3.0"):AddToBlizOptions(ADDON_NAME)
 
-		local label = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-		label:SetPoint("BOTTOMLEFT", frame, "TOPLEFT", 4, 0)
-		label:SetPoint("BOTTOMRIGHT", frame, "TOPRIGHT", -4, 0)
-		label:SetJustifyH("LEFT")
-		label:SetText(labelText)
-		frame.labelText = label
 
-		frame:SetSize(floor(SettingsPanel.Container.SettingsCanvas:GetWidth() - 32), 50)
-
-		return frame
-	end
-
-	local function MakeSlider(name)
-		local Slider = CreateFrame("Slider", name, panel, "OptionsSliderTemplate")
-		Slider:SetWidth(200)
-
-		Slider.low = _G[Slider:GetName().."Low"]
-		Slider.low:SetPoint("TOPLEFT", Slider, "BOTTOMLEFT", 0, 0)
-		Slider.low:SetFontObject(GameFontNormalSmall)
-		Slider.low:Hide()
-
-		Slider.high = _G[Slider:GetName().."High"]
-		Slider.high:SetPoint("TOPRIGHT", Slider, "BOTTOMRIGHT", 0, 0)
-		Slider.high:SetFontObject(GameFontNormalSmall)
-		Slider.high:Hide()
-
-		Slider.value = Slider:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-		Slider.value:SetPoint("BOTTOMRIGHT", Slider, "TOPRIGHT")
-
-		Slider.text = _G[Slider:GetName().."Text"]
-		Slider.text:SetFontObject(GameFontNormal)
-		Slider.text:ClearAllPoints()
-		Slider.text:SetPoint("BOTTOMLEFT", Slider, "TOPLEFT")
-		Slider.text:SetPoint("BOTTOMRIGHT", Slider.value, "BOTTOMLEFT", -4, 0)
-		Slider.text:SetJustifyH("LEFT")
-
-		return Slider
-	end
-
-	local function MakeButton(name, tooltipText)
-		local button = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
-		button:GetFontString():SetPoint("CENTER", -1, 0)
-		button:SetMotionScriptsWhileDisabled(true)
-		button:RegisterForClicks("AnyUp")
-		button:SetText(name)
-		button.tooltipText = tooltipText
-
-		return button
-	end
-
-	--------------------------------------------------------------------
-
-	local Title = panel:CreateFontString("$parentTitle", "ARTWORK", "GameFontNormalLarge")
-	Title:SetPoint("TOPLEFT", 16, -16)
-	Title:SetText(ADDON_NAME.." "..C_AddOns.GetAddOnMetadata(ADDON_NAME, "Version"))
-
-	local SubText = panel:CreateFontString("$parentSubText", "ARTWORK", "GameFontHighlightSmall")
-	SubText:SetPoint("TOPLEFT", Title, "BOTTOMLEFT", 0, -8)
-	SubText:SetPoint("RIGHT", -32, 0)
-	SubText:SetHeight(32)
-	SubText:SetJustifyH("LEFT")
-	SubText:SetJustifyV("TOP")
-	SubText:SetText(C_AddOns.GetAddOnMetadata(ADDON_NAME, "Notes"))
-
-	--------------------------------------------------------------------
-
-	local SPanel = CreatePanel("$parentSPanel", format(L.Pos, L.Frame))
-	SPanel:SetPoint("BOTTOMLEFT", 16, 16)
-
-	local XSlider = MakeSlider("$parentXSlider")
-	XSlider:SetMinMaxValues(0, floor(GetScreenWidth() + 0.5))
-	XSlider.minValue, XSlider.maxValue = XSlider:GetMinMaxValues()
-	XSlider:SetValueStep(1)
-	XSlider.low:SetText(XSlider.minValue)
-	XSlider.low:Show()
-	XSlider.high:SetText(XSlider.maxValue)
-	XSlider.high:Show()
-	XSlider.text:SetText(format(L.Pos, "X-"))
-	XSlider.tooltipText = format(L.Pos_Tip, "X")
-	XSlider:SetPoint("TOPLEFT", SPanel, (12 + 22), -floor(12 + XSlider.text:GetHeight() + 0.5)) -- X: Margin + width of a button, Y: Give room for Text and Value
-	XSlider:SetScript("OnValueChanged", function(self, value)
-		if DEBUG then Debug("C: X", value) end
-
-		self.value:SetText(floor(value + 0.5))
-
-		if floor(value + f:GetWidth() + 0.5) > floor(GetScreenWidth() + 0.5) then
-			value = floor(GetScreenWidth() - f:GetWidth() + 0.5)
-		end
-		db.XPos = floor(value + 0.5)
-
-		f:ClearAllPoints()
-		f:SetPoint("BOTTOMLEFT", db.XPos, db.YPos)
-	end)
-
-
-	local YSlider = MakeSlider("$parentYSlider")
-	YSlider:SetMinMaxValues(0, floor(GetScreenHeight() + 0.5))
-	YSlider.minValue, YSlider.maxValue = YSlider:GetMinMaxValues()
-	YSlider:SetValueStep(1)
-	YSlider.low:SetText(YSlider.minValue)
-	YSlider.low:Show()
-	YSlider.high:SetText(YSlider.maxValue)
-	YSlider.high:Show()
-	YSlider.text:SetText(format(L.Pos, "Y-"))
-	YSlider.tooltipText = format(L.Pos_Tip, "Y")
-	YSlider:SetPoint("TOPRIGHT", SPanel, -(12 + 22), -floor(12 + YSlider.text:GetHeight() + 0.5)) -- X: Margin + width of a button, Y: Give room for Text and Value
-	YSlider:SetScript("OnValueChanged", function(self, value)
-		if DEBUG then Debug("C: Y", value) end
-
-		self.value:SetText(floor(value + 0.5))
-
-		if floor(value + f:GetHeight() + 0.5) > floor(GetScreenHeight() + 0.5) then
-			value = floor(GetScreenHeight() - f:GetHeight() + 0.5)
-		end
-		db.YPos = floor(value+0.5)
-
-		f:ClearAllPoints()
-		f:SetPoint("BOTTOMLEFT", db.XPos, db.YPos)
-	end)
-
-	local Xm = MakeButton("-", L.NudgeLeft)
-	Xm:SetPoint("RIGHT", XSlider, "LEFT")
-	Xm:SetWidth(Xm:GetHeight())
-	Xm:SetScript("OnClick", function(self, button)
-		PlaySound(SOUNDKIT.GS_TITLE_OPTION_OK)
-
-		db.XPos = floor(db.XPos - 1)
-
-		f:ClearAllPoints()
-		f:SetPoint("BOTTOMLEFT", db.XPos, db.YPos)
-
-		XSlider:SetValue(db.XPos)
-
-		if DEBUG then Debug("C: X-") end
-	end)
-
-	local Xp = MakeButton("+", L.NudgeRight)
-	Xp:SetPoint("LEFT", XSlider, "RIGHT")
-	Xp:SetWidth(Xp:GetHeight())
-	Xp:SetScript("OnClick", function(self, button)
-		PlaySound(SOUNDKIT.GS_TITLE_OPTION_OK)
-
-		db.XPos = floor(db.XPos + 1)
-
-		f:ClearAllPoints()
-		f:SetPoint("BOTTOMLEFT", db.XPos, db.YPos)
-
-		XSlider:SetValue(db.XPos)
-
-		if DEBUG then Debug("C: X+") end
-	end)
-
-	local Ym = MakeButton("-", L.NudgeDown)
-	Ym:SetPoint("RIGHT", YSlider, "LEFT")
-	Ym:SetWidth(Ym:GetHeight())
-	Ym:SetScript("OnClick", function(self, button)
-		PlaySound(SOUNDKIT.GS_TITLE_OPTION_OK)
-
-		db.YPos = floor(db.YPos - 1)
-
-		f:ClearAllPoints()
-		f:SetPoint("BOTTOMLEFT", db.XPos, db.YPos)
-
-		YSlider:SetValue(db.YPos)
-
-		if DEBUG then Debug("C: Y-") end
-	end)
-
-	local Yp = MakeButton("+", L.NudgeUp)
-	Yp:SetPoint("LEFT", YSlider, "RIGHT")
-	Yp:SetWidth(Yp:GetHeight())
-	Yp:SetScript("OnClick", function(self, button)
-		PlaySound(SOUNDKIT.GS_TITLE_OPTION_OK)
-
-		db.YPos = floor(db.YPos + 1)
-
-		f:ClearAllPoints()
-		f:SetPoint("BOTTOMLEFT", db.XPos, db.YPos)
-
-		YSlider:SetValue(db.YPos)
-
-		if DEBUG then Debug("C: Y+") end
-	end)
-
-	local ResetPos = MakeButton(L.Reset, L.Reset_Tip)
-	ResetPos:SetPoint("CENTER", SPanel, 0, 9)
-	ResetPos:SetWidth(ResetPos:GetFontString():GetStringWidth() + 24)
-	ResetPos:SetScript("OnClick", function(self, button)
-		PlaySound(SOUNDKIT.GS_TITLE_OPTION_OK)
-
-		db.XPos = 275
-		db.YPos = 275
-
-		f:ClearAllPoints()
-		f:SetPoint("BOTTOMLEFT", db.XPos, db.YPos)
-
-		XSlider:SetValue(db.XPos)
-		YSlider:SetValue(db.YPos)
-
-		if DEBUG then Debug("C: Reset") end
-	end)
-
-	local SSubText = SPanel:CreateFontString("$parentSubText", "ARTWORK", "GameFontHighlightSmall")
-	SSubText:SetPoint("TOPLEFT", XSlider.low, "BOTTOMLEFT", -22, -8) -- X reducing the width of a button
-	SSubText:SetJustifyH("LEFT")
-	SSubText:SetJustifyV("TOP")
-	SSubText:SetText(L.Pos_Desc)
-
-	SPanel:SetHeight(floor(XSlider:GetHeight() + XSlider.low:GetHeight() + XSlider.text:GetHeight() + SSubText:GetHeight() + 36 + 0.5))
-
-	--------------------------------------------------------------------
-
-	local CPanel = CreatePanel("$parentConfigPanel", L.Config)
-	CPanel:SetPoint("TOPLEFT", SubText, "BOTTOMLEFT", 0, -12)
-	CPanel:SetPoint("BOTTOMLEFT", SPanel, "TOPLEFT", 0, 28)
-
-	--------------------------------------------------------------------
-
-	local AutoBuyCheckBox = CreateFrame("CheckButton", "$parentAutoBuyCheckBox", panel, "InterfaceOptionsCheckButtonTemplate")
-	AutoBuyCheckBox:SetPoint("TOPLEFT", CPanel, 8, -8)
-	AutoBuyCheckBox.Text:SetText(NORMAL_FONT_COLOR_CODE .. L.Enable .. FONT_COLOR_CODE_CLOSE)
-	AutoBuyCheckBox.tooltipText = L.Enable_Tip
-	AutoBuyCheckBox:SetScript("OnClick", function(this)
-		local checked = not not this:GetChecked()
-		PlaySound(checked and SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON or SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_OFF)
-		db.AutoBuy = checked
-
-		if DEBUG then Debug("C: AutoBuy", db.AutoBuy, checked) end
-	end)
-
-	local ABSubText = CPanel:CreateFontString("$parentSubText", "ARTWORK", "GameFontHighlightSmall")
-	ABSubText:SetPoint("TOPLEFT", AutoBuyCheckBox, "BOTTOMLEFT", 4, -8)
-	ABSubText:SetJustifyH("LEFT")
-	ABSubText:SetJustifyV("TOP")
-	ABSubText:SetText(L.Enable_Desc)
-
-	--------------------------------------------------------------------
-
-	--[[
-		https://www.wowhead.com/news=318875/darkmoon-faire-november-2020-skill-requirement-removed-from-profession-quests
-		---------------------------------------------------------------------------------
-		In the Shadowlands pre-patch, the 75 skill requirement has been removed from
-		Darkmoon Faire profession quests. You now only need to know a minimum of level 1,
-		and completing the quest still adds points to the highest expansion's profession
-		level known.
-		---------------------------------------------------------------------------------
-	]]--
-
-	--[[local LowSkillCheckBox = CreateFrame("CheckButton", "$parentLowSkillCheckBox", panel, "InterfaceOptionsCheckButtonTemplate")
-	LowSkillCheckBox:SetPoint("TOPLEFT", ABSubText, -4, -26)
-	LowSkillCheckBox.Text:SetText(NORMAL_FONT_COLOR_CODE .. L.HideLow .. FONT_COLOR_CODE_CLOSE)
-	LowSkillCheckBox.tooltipText = L.HideLow_Tip
-	LowSkillCheckBox:SetScript("OnClick", function(this)
-		local checked = not not this:GetChecked()
-		PlaySound(checked and SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON or SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_OFF)
-		db.HideLow = checked
-
-		f:UpdateQuests()
-
-		if DEBUG then Debug("C: HideLow", db.HideLow, checked) end
-	end)
-
-	local HLSubText = CPanel:CreateFontString("$parentSubText2", "ARTWORK", "GameFontHighlightSmall")
-	HLSubText:SetPoint("TOPLEFT", LowSkillCheckBox, "BOTTOMLEFT", 4, -8)
-	HLSubText:SetJustifyH("LEFT")
-	HLSubText:SetJustifyV("TOP")
-	HLSubText:SetText(L.HideLow_Desc)
-	]]
-
-	local HighSkillCheckBox = CreateFrame("CheckButton", "$parentHighSkillCheckBox", panel, "InterfaceOptionsCheckButtonTemplate")
-	--HighSkillCheckBox:SetPoint("TOPLEFT", HLSubText, -4, -26)
-	HighSkillCheckBox:SetPoint("TOPLEFT", ABSubText, -4, -26)
-	HighSkillCheckBox.Text:SetText(NORMAL_FONT_COLOR_CODE .. L.HideHigh .. FONT_COLOR_CODE_CLOSE)
-	HighSkillCheckBox.tooltipText = L.HideMax_Tip
-	HighSkillCheckBox:SetScript("OnClick", function(this)
-		local checked = not not this:GetChecked()
-		PlaySound(checked and SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON or SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_OFF)
-		db.HideMax = checked
-
-		f:UpdateQuests()
-
-		if DEBUG then Debug("C: HideMax", db.HideMax, checked) end
-	end)
-
-	local HMSubText = CPanel:CreateFontString("$parentSubText3", "ARTWORK", "GameFontHighlightSmall")
-	HMSubText:SetPoint("TOPLEFT", HighSkillCheckBox, "BOTTOMLEFT", 4, -8)
-	HMSubText:SetJustifyH("LEFT")
-	HMSubText:SetJustifyV("TOP")
-	HMSubText:SetText(L.HideMax_Desc)
-
-	--------------------------------------------------------------------
-
-	local PetBattleCheckBox = CreateFrame("CheckButton", "$parentPetBattleCheckBox", panel, "InterfaceOptionsCheckButtonTemplate")
-	PetBattleCheckBox:SetPoint("TOPLEFT", HMSubText, -4, -26)
-	PetBattleCheckBox.Text:SetText(NORMAL_FONT_COLOR_CODE .. L.EnablePetBattle .. FONT_COLOR_CODE_CLOSE)
-	PetBattleCheckBox.tooltipText = L.PetBattle_Tip
-	PetBattleCheckBox:SetScript("OnClick", function(this)
-		local checked = not not this:GetChecked()
-		PlaySound(checked and SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON or SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_OFF)
-		db.PetBattle = checked
-
-		f:UpdateQuests()
-
-		if DEBUG then Debug("C: PetBattle", db.PetBattle, checked) end
-	end)
-
-	local DeathMetalKnightChechBox = CreateFrame("CheckButton", "$parentDeathMetalKnightChechBox", panel, "InterfaceOptionsCheckButtonTemplate")
-	--DeathMetalKnightChechBox:SetPoint("TOPLEFT", PetBattleCheckBox, "BOTTOMLEFT", 0, -8)
-	DeathMetalKnightChechBox:SetPoint("TOPLEFT", HMSubText, -4 + CPanel:GetWidth() / 2, -26)
-	DeathMetalKnightChechBox.Text:SetText(NORMAL_FONT_COLOR_CODE .. L.EnableDeathMetalKnight .. FONT_COLOR_CODE_CLOSE)
-	DeathMetalKnightChechBox.tooltipText = L.DeathMetalKnight_Tip
-	DeathMetalKnightChechBox:SetScript("OnClick", function(this)
-		local checked = not not this:GetChecked()
-		PlaySound(checked and SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON or SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_OFF)
-		db.DeathMetalKnight = checked
-
-		f:UpdateQuests()
-
-		if DEBUG then Debug("C: DeathMetalKnight", db.DeathMetalKnight, checked) end
-	end)
-
-	local TestYourStrengthCheckBox = CreateFrame("CheckButton", "$parentTestYourStrengthChechBox", panel, "InterfaceOptionsCheckButtonTemplate")
-	--TestYourStrengthCheckBox:SetPoint("TOPLEFT", DeathMetalKnightChechBox, "BOTTOMLEFT", 0, -8)
-	TestYourStrengthCheckBox:SetPoint("TOPLEFT", PetBattleCheckBox, "BOTTOMLEFT", 0, -8)
-	TestYourStrengthCheckBox.Text:SetText(NORMAL_FONT_COLOR_CODE .. L.EnableTestYourStrength .. FONT_COLOR_CODE_CLOSE)
-	TestYourStrengthCheckBox.tooltipText = L.TestYourStrength_Tip
-	TestYourStrengthCheckBox:SetScript("OnClick", function(this)
-		local checked = not not this:GetChecked()
-		PlaySound(checked and SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON or SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_OFF)
-		db.TestYourStrength = checked
-
-		f:UpdateQuests()
-
-		if DEBUG then Debug("C: TestYourStrength", db.TestYourStrength, checked) end
-	end)
-
-	local FadedTreasureMapCheckBox = CreateFrame("CheckButton", "$parentFadedTreasureMapChechBox", panel, "InterfaceOptionsCheckButtonTemplate")
-	--FadedTreasureMapCheckBox:SetPoint("TOPLEFT", TestYourStrengthCheckBox, "BOTTOMLEFT", 0, -8)
-	FadedTreasureMapCheckBox:SetPoint("TOPLEFT", DeathMetalKnightChechBox, "BOTTOMLEFT", 0, -8)
-	FadedTreasureMapCheckBox.Text:SetText(NORMAL_FONT_COLOR_CODE .. L.EnableFadedTreasureMap .. FONT_COLOR_CODE_CLOSE)
-	FadedTreasureMapCheckBox.tooltipText = L.FadedTreasureMap_Tip
-	FadedTreasureMapCheckBox:SetScript("OnClick", function(this)
-		local checked = not not this:GetChecked()
-		PlaySound(checked and SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON or SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_OFF)
-		db.FadedTreasureMap = checked
-
-		f:UpdateQuests()
-
-		if DEBUG then Debug("C: FadedTreasureMap", db.FadedTreasureMap, checked) end
-	end)
-
-	local DMFSubText = CPanel:CreateFontString("$parentSubText4", "ARTWORK", "GameFontHighlightSmall")
-	--DMFSubText:SetPoint("TOPLEFT", FadedTreasureMapCheckBox, "BOTTOMLEFT", 4, -8)
-	DMFSubText:SetPoint("TOPLEFT", TestYourStrengthCheckBox, "BOTTOMLEFT", 4, -8)
-	DMFSubText:SetJustifyH("LEFT")
-	DMFSubText:SetJustifyV("TOP")
-	DMFSubText:SetText(L.Misc_Desc)
-
-	--------------------------------------------------------------------
-
-	local ShowItemRewardsCheckBox = CreateFrame("CheckButton", "$parentShowItemRewardsCheckBox", panel, "InterfaceOptionsCheckButtonTemplate")
-	ShowItemRewardsCheckBox:SetPoint("TOPLEFT", DMFSubText, -4, -26)
-	ShowItemRewardsCheckBox.Text:SetText(NORMAL_FONT_COLOR_CODE .. L.EnableShowItemRewards .. FONT_COLOR_CODE_CLOSE)
-	ShowItemRewardsCheckBox.tooltipText = L.ShowItemRewards_Tip
-	ShowItemRewardsCheckBox:SetScript("OnClick", function(this)
-		local checked = not not this:GetChecked()
-		PlaySound(checked and SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON or SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_OFF)
-		db.ShowItemRewards = checked
-
-		if DEBUG then Debug("C: ShowItemRewards", db.ShowItemRewards, checked) end
-	end)
-
-	local ShowItemRewardsSubText = CPanel:CreateFontString("$parentSubText5", "ARTWORK", "GameFontHighlightSmall")
-	ShowItemRewardsSubText:SetPoint("TOPLEFT", ShowItemRewardsCheckBox, "BOTTOMLEFT", 4, -8)
-	ShowItemRewardsSubText:SetJustifyH("LEFT")
-	ShowItemRewardsSubText:SetJustifyV("TOP")
-	ShowItemRewardsSubText:SetText(L.ShowItemRewards_Desc)
-
-	local UseTimeOffsetCheckBox = CreateFrame("CheckButton", "$parentUseTimeOffset", panel, "InterfaceOptionsCheckButtonTemplate")
-	UseTimeOffsetCheckBox:SetPoint("TOPLEFT", ShowItemRewardsSubText, -4, -26)
-	UseTimeOffsetCheckBox.Text:SetText(NORMAL_FONT_COLOR_CODE .. L.EnableUseTimeOffset .. FONT_COLOR_CODE_CLOSE)
-	UseTimeOffsetCheckBox.tooltipText = L.UseTimeOffset_Tip
-	UseTimeOffsetCheckBox:SetScript("OnClick", function(this)
-		local checked = not not this:GetChecked()
-		PlaySound(checked and SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON or SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_OFF)
-		db.UseTimeOffset = checked
-
-		if DEBUG then Debug("C: UseTimeOffset", db.UseTimeOffset, checked) end
-	end)
-
-	local UseTimeOffsetSubText = CPanel:CreateFontString("$parentSubText6", "ARTWORK", "GameFontHighlightSmall")
-	UseTimeOffsetSubText:SetPoint("TOPLEFT", UseTimeOffsetCheckBox, "BOTTOMLEFT", 4, -8)
-	UseTimeOffsetSubText:SetJustifyH("LEFT")
-	UseTimeOffsetSubText:SetJustifyV("TOP")
-	UseTimeOffsetSubText:SetText(L.UseTimeOffset_Desc)
-
-	--------------------------------------------------------------------
-
-	function panel:Refresh()
-		AutoBuyCheckBox:SetChecked(db.AutoBuy)
-		--LowSkillCheckBox:SetChecked(db.HideLow)
-		HighSkillCheckBox:SetChecked(db.HideMax)
-
-		PetBattleCheckBox:SetChecked(db.PetBattle)
-		DeathMetalKnightChechBox:SetChecked(db.DeathMetalKnight)
-		TestYourStrengthCheckBox:SetChecked(db.TestYourStrength)
-		FadedTreasureMapCheckBox:SetChecked(db.FadedTreasureMap)
-
-		ShowItemRewardsCheckBox:SetChecked(db.ShowItemRewards)
-		UseTimeOffsetCheckBox:SetChecked(db.UseTimeOffset)
-		
-		XSlider:SetValue(db.XPos)
-		YSlider:SetValue(db.YPos)
-
-	end
-
-	panel:Refresh()
-	panel:SetScript("OnShow", nil)
-end)
-
-
--------------------------------------------------------------------------------
---EOF
+------------------------------------------------------------------------- EOF --
