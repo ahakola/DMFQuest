@@ -45,6 +45,15 @@
 --[[----------------------------------------------------------------------------
 	Hard coded "data"
 ----------------------------------------------------------------------------]]--
+
+	--[[------------------------------------------------------------------------
+		https://www.wowhead.com/news=318875/darkmoon-faire-november-2020-skill-requirement-removed-from-profession-quests
+		------------------------------------------------------------------------
+		In the Shadowlands pre-patch, the 75 skill requirement has been removed
+		from Darkmoon Faire profession quests. You now only need to know a
+		minimum of level 1, and completing the quest still adds points to the
+		highest expansion's profession level known.
+	------------------------------------------------------------------------]]--
 	local minimumSkillRequired = 1 -- This used to be 75
 	local currentSkillCap = PROFESSION_RANKS[#PROFESSION_RANKS][1] or 75
 	local dbDefaults = {
@@ -1125,10 +1134,19 @@
 		Debug(" -> POST:", #activeStrings)
 
 		-- Iterate Professions
-		for i = 1, #ProfData do
+		local profCount = 0
+		for j = 1, 6 do
+			if ProfData and ProfData[j] then
+				Debug(" -->", j, ProfData[j].name, "OK")
+				profCount = profCount + 1
+			end
+		end
+		Debug(" -> Data:", #ProfData, profCount)
+		--for i = 1, #ProfData do
+		for i = 1, 6 do
 			local prof = ProfData[i]
 
-			if prof.professionId then
+			if prof and prof.professionId then
 				Debug("- %d %s (%d) %d/%d", i, prof.name, prof.professionId, prof.skillLevel, prof.maxSkillLevel)
 				local questData = ProfessionQuestData[prof.professionId]
 
@@ -1298,7 +1316,7 @@
 		Debug("UpdateProfessions")
 
 		local textLinesWaitingChanged = false
-		for index, professionIndex in ipairs({ GetProfessions() }) do -- prof1, prof2, archaeology, fishing, cooking
+		for index, professionIndex in pairs({ GetProfessions() }) do -- prof1, prof2, archaeology, fishing, cooking
 			if professionIndex then
 				local name, icon, skillLevel, maxSkillLevel, _, _, skillLine = GetProfessionInfo(professionIndex)
 
@@ -1795,10 +1813,10 @@ local DMFQConfig = {
 					--	----------------------------------------------------------------------------------------------------
 					order = 20,
 					name = L.Config_ExtraFeatures_HideLow,
-					desc = L.Config_ExtraFeatures_HideLow_Desc,
+					desc = string.format(L.Config_ExtraFeatures_HideLow_Desc, minimumSkillRequired),
 					type = "toggle",
 					width = 1.5,
-					hidden = true
+					--hidden = true
 				},
 				HideMax = {
 					order = 30,
