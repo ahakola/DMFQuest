@@ -1121,35 +1121,45 @@
 		end
 	end
 
+	local updateCount = 0
 	function f:UpdateTextLines() -- Update textLine to reflect Quest progress
 		Debug("UpdateTextLines")
 		delayLock = false
 
-		-- Release previously used FontStrings
-		Debug(" -> PRE:", #activeStrings)
-		for s = #activeStrings, 1, -1 do
-			stringPool:Release(activeStrings[s])
-			activeStrings[s] = nil
-		end
-		Debug(" -> POST:", #activeStrings)
-
-		-- Iterate Professions
-		local profCount = 0
-		for j = 1, 6 do
-			if ProfData and ProfData[j] then
-				--Debug(" -->", j, ProfData[j].name, "OK")
-				profCount = profCount + 1
+		if updateCount == 0 then
+			-- Release previously used FontStrings
+			Debug(" -> PRE:", #activeStrings)
+			for s = #activeStrings, 1, -1 do
+				stringPool:Release(activeStrings[s])
+				activeStrings[s] = nil
 			end
+			Debug(" -> POST:", #activeStrings)
+
+			-- Iterate Professions
+			local profCount = 0
+			for j = 1, 6 do
+				if ProfData and ProfData[j] then
+					Debug(" -->", j, ProfData[j].name, "OK")
+					profCount = profCount + 1
+				end
+			end
+			Debug(" -> Data: %d / %d", #ProfData, profCount)
 		end
-		Debug(" -> Data:", #ProfData, profCount)
+
 		--for i = 1, #ProfData do
 		for i = 1, 6 do
 			local prof = ProfData[i]
 
 			if prof and prof.professionId then
 				Debug("- %d %s (%d) %d/%d", i, prof.name, prof.professionId, prof.skillLevel, prof.maxSkillLevel)
-				local questData = ProfessionQuestData[prof.professionId]
+				if prof.maxSkillLevel == 0 and updateCount < 5 then
+					updateCount = updateCount + 1
+					Debug(" !!! maxSkillLevel 0 !!!", updateCount)
+					f:UpdateProfessions(true)
+					return
+				end
 
+				local questData = ProfessionQuestData[prof.professionId]
 				local showThisProfession = true
 				local skillLineText, questItemText = "", ""
 
@@ -1303,6 +1313,7 @@
 			_getTextLine("|T%d:0|t %s\n%s", questIcon, itemName or "FTMtitle n/a", strtrim(questTextLine))
 		end
 
+		updateCount = 0
 		f.ContainerText:Hide() -- Hide this if it is still showing
 		f:Layout() -- Resize UI
 	end
@@ -1312,10 +1323,11 @@
 
 	local additionalQuestItemsDone = false
 
-	function f:UpdateProfessions()
-		Debug("UpdateProfessions")
+	function f:UpdateProfessions(forceUpdateTextLines)
+		Debug("UpdateProfessions", forceUpdateTextLines and "true" or "")
 
 		local textLinesWaitingChanged = false
+		local goodResults = 0
 		for index, professionIndex in pairs({ GetProfessions() }) do -- prof1, prof2, archaeology, fishing, cooking
 			if professionIndex then
 				local name, icon, skillLevel, maxSkillLevel, _, _, skillLine = GetProfessionInfo(professionIndex)
@@ -1337,6 +1349,7 @@
 					for _, skillLineId in ipairs(ProfessionTradeSkillLines[skillLine]) do
 						local skillInfo = C_TradeSkillUI.GetProfessionInfoBySkillLineID(skillLineId)
 						if skillInfo and skillInfo.maxSkillLevel and skillInfo.maxSkillLevel > 0 then
+							goodResults = goodResults + 1
 							ProfData[index].skillLevel = ProfData[index].skillLevel + skillInfo.skillLevel
 							ProfData[index].maxSkillLevel = ProfData[index].maxSkillLevel + skillInfo.maxSkillLevel
 						end
@@ -1403,6 +1416,11 @@
 		end
 
 		-----
+
+		if (forceUpdateTextLines) and goodResults > 0 then
+			Debug(" --> goodResults", goodResults)
+			_delayedUpdateTextLines()
+		end
 	end
 
 	local shoppingLock = false
