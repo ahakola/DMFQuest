@@ -1,36 +1,46 @@
---[[-------------------------------------------------------------------------------------------------------------------
+--[[----------------------------------------------------------------------------
 	Accessing tradeskill levels without the UI
 	By p3lim on 2023.04.25 17:11 UTC
 	https://github.com/Stanzilla/WoWUIBugs/issues/424
 
-	In the good old days we could simply request skill levels for the player's profession(s) using GetNumSkillLines()
-	and GetSkillLineInfo(index), and is still the current method on classic realms.
+	In the good old days we could simply request skill levels for the player's
+	profession(s) using GetNumSkillLines() and GetSkillLineInfo(index), and is
+	still the current method on classic realms.
 
-	The way to get this information now is by iterating over C_TradeSkillUI.GetAllProfessionTradeSkillLines() and using
-	C_TradeSkillUI.GetProfessionInfoBySkillLineID(skillLineID) to get the skill levels.
+	The way to get this information now is by iterating over
+	C_TradeSkillUI.GetAllProfessionTradeSkillLines() and using
+	C_TradeSkillUI.GetProfessionInfoBySkillLineID(skillLineID) to get the skill
+	levels.
 
-	However this requires the tradeskill data to be valid, otherwise the skill level values are all 0. To validate this
-	data we need to call C_TradeSkillUI.OpenTradeSkill(skillLineID), which requires a hardware event and is disruptive
-	as it force shows the tradeskill UI.
+	However this requires the tradeskill data to be valid, otherwise the skill
+	level values are all 0. To validate this data we need to call
+	C_TradeSkillUI.OpenTradeSkill(skillLineID), which requires a hardware event
+	and is disruptive as it force shows the tradeskill UI.
 
-	Once C_TradeSkillUI.OpenTradeSkill() has been called atleast once per character session, the player can freely
-	unlearn every profession and learn something else, even /reload the game, and the data is still valid for all
-	current and future professions. This means there's a flag being set, per character session.
+	Once C_TradeSkillUI.OpenTradeSkill() has been called atleast once per
+	character session, the player can freely unlearn every profession and learn
+	something else, even /reload the game, and the data is still valid for all 
+	current and future professions. This means there's a flag being set, per
+	character session.
 
 	My proposal is one of the following, in order of most preferable first:
 
-	1.	let C_TradeSkillUI.GetProfessionInfoBySkillLineID(skillLineID) request the data by itself
-	2.	implement C_TradeSkillUI.RequestData(), which would validify this data without requiring a hardware event, and
-		without being disruptive (e.g. it would trigger a different event than TRADE_SKILL_SHOW)
-	3.	add an optional argument to the existing API, e.g. C_TradeSkillUI.OpenTradeSkill(skillLineID[, dontOpen]),
-		passing the new arg as a parameter to the TRADE_SKILL_SHOW event, which the UIParent event handler should
-		respect (and addons would have to too, which is why this is least preferable)
+	1.	let C_TradeSkillUI.GetProfessionInfoBySkillLineID(skillLineID) request
+		the data by itself
+	2.	implement C_TradeSkillUI.RequestData(), which would validify this data
+		without requiring a hardware event, and without being disruptive (e.g.
+		it would trigger a different event than TRADE_SKILL_SHOW)
+	3.	add an optional argument to the existing API, e.g.
+		C_TradeSkillUI.OpenTradeSkill(skillLineID[, dontOpen]), passing the new
+		arg as a parameter to the TRADE_SKILL_SHOW event, which the UIParent
+		event handler should respect (and addons would have to too, which is why
+		this is least preferable)
 
-	-------------------------------------------------------------------------------------------------------------------
+	----------------------------------------------------------------------------
 
 	https://github.com/Stanzilla/WoWUIBugs/issues/424#issuecomment-1522140660
 	My current workaround, which anyone is free to copy:
--------------------------------------------------------------------------------------------------------------------]]--
+----------------------------------------------------------------------------]]--
 
 -- in case other addons copies this, make sure it never loads multiple times unless there is a
 -- newer version of it, in which case we disable it and load anyways
