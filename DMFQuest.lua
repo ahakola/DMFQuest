@@ -1405,9 +1405,17 @@
 		-----
 	end
 
+	local shoppingLock = false
 	function f:AutoBuyItems()
 		if (not db.AutoBuy) then return end
 		Debug("AutoBuyItems")
+
+		if (shoppingLock) then -- Try to prevent double buying of items
+			Debug(" !!! shoppingLock, exiting early !!!")
+		else
+			Debug(" -> Enable shoppingLock")
+			shoppingLock = true
+		end
 
 		local totalCost = 0
 		local receiptTitleForAutoBuyShown = false
@@ -1484,6 +1492,9 @@
 			Print("- - - - - - - - - - - - - - -")
 			Print(L.ChatMessage_AutoBuy_Total, GetCoinText(totalCost, " "))
 		end
+
+		Debug(" -> Release shoppingLock")
+		shoppingLock = false -- Release buying
 	end
 
 	-- Reset Settings
