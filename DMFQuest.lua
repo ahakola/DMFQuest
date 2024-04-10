@@ -559,6 +559,8 @@
 		f.ZONE_CHANGED_NEW_AREA = f.PLAYER_ENTERING_WORLD	-- Fires when the player enters a new zone.
 
 	-- Merchant
+		local lastShoppingTime = 0
+		local shoppingSpreeLimit = 2  -- Don't let AutoBuy fire more than once per every 2 seconds
 		do -- MERCHANT throttling
 			local throttling
 
@@ -566,14 +568,19 @@
 				throttling = nil
 
 				if f:CheckForDMF() and (f:IsShown() or (C_QuestLog.GetLogIndexForQuestID(29506) and C_QuestLog.GetLogIndexForQuestID(29506) > 0)) then -- 29506 = A Fizzy Fusion
-					f:AutoBuyItems()
+					local timeDifference = GetTime() - lastShoppingTime
+					if timeDifference > shoppingSpreeLimit then
+						f:AutoBuyItems()
+					else
+						Debug(" !!! Block AutoBuy !!!", timeDifference)
+					end
 				end
 				--f:UpdateTextLines() -- This shouldn't be needed, because this gets taken care of by the bags portion
 			end
 
 			local function ThrottleBuyItems(...)
 				if (not throttling) then
-					Debug("-- Merchant: Throttling Buy Items", tostringall(...))
+					Debug("-- Merchant: Throttling Buy Items", ... and #(...))
 
 					C_Timer.After(1, DelayedBuyItems)
 					throttling = true
@@ -1423,17 +1430,9 @@
 		end
 	end
 
-	local shoppingLock = false
 	function f:AutoBuyItems()
 		if (not db.AutoBuy) then return end
 		Debug("AutoBuyItems")
-
-		if (shoppingLock) then -- Try to prevent double buying of items
-			Debug(" !!! shoppingLock, exiting early !!!")
-		else
-			Debug(" -> Enable shoppingLock")
-			shoppingLock = true
-		end
 
 		local totalCost = 0
 		local receiptTitleForAutoBuyShown = false
@@ -1451,9 +1450,9 @@
 				if (not C_QuestLog.IsQuestFlaggedCompleted(questData.questId)) and questData.questItems and next(questData.questItems) then
 					for itemId, materialNeeds in pairs(questData.questItems) do
 						local buyCount = materialNeeds - GetItemCount(itemId)
-						Debug(" - Looking for %d x %d", buyCount, itemId)
 
 						if buyCount > 0 then -- We need to buy more of this item
+							Debug(" - Looking for %d x %d", buyCount, itemId)
 							for j = 1, GetMerchantNumItems() do
 								local itemLink = GetMerchantItemLink(j)
 
@@ -1511,8 +1510,7 @@
 			Print(L.ChatMessage_AutoBuy_Total, GetCoinText(totalCost, " "))
 		end
 
-		Debug(" -> Release shoppingLock")
-		shoppingLock = false -- Release buying
+		lastShoppingTime = GetTime()
 	end
 
 	-- Reset Settings
