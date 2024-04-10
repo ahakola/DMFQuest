@@ -1137,7 +1137,7 @@
 		local profCount = 0
 		for j = 1, 6 do
 			if ProfData and ProfData[j] then
-				Debug(" -->", j, ProfData[j].name, "OK")
+				--Debug(" -->", j, ProfData[j].name, "OK")
 				profCount = profCount + 1
 			end
 		end
@@ -1412,11 +1412,12 @@
 		local totalCost = 0
 		local receiptTitleForAutoBuyShown = false
 
-		for i = 1, #ProfData do
+		--for i = 1, #ProfData do
+		for i = 1, 6 do
 			local prof = ProfData[i]
 
 			-- Check we have profession, we are at or above minimum skillLevel and the profession isn't Archaeology because it uses currency instead of items for turn in
-			if prof.professionId and prof.skillLevel >= minimumSkillRequired and prof.professionId ~= 794 then
+			if prof and prof.professionId and prof.skillLevel >= minimumSkillRequired and prof.professionId ~= 794 then
 				Debug("%s (%d) %d", prof.name, prof.professionId, prof.skillLevel)
 				local questData = ProfessionQuestData[prof.professionId]
 
