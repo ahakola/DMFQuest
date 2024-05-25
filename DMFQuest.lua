@@ -21,6 +21,9 @@
 	local db
 	local isFramePinned = false
 
+	local isRetail = (_G.WOW_PROJECT_ID == _G.WOW_PROJECT_MAINLINE)
+	local isCataClassic = (_G.WOW_PROJECT_ID == _G.WOW_PROJECT_CATACLYSM_CLASSIC)
+
 	-- GLOBALS: DMFQConfig, DEBUG_CHAT_FRAME
 
 	-- GLOBALS: GREEN_FONT_COLOR, ORANGE_FONT_COLOR, RED_FONT_COLOR
