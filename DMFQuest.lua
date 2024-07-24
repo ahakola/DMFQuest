@@ -21,8 +21,9 @@
 	local db
 	local isFramePinned = false
 
-	local isRetail = (_G.WOW_PROJECT_ID == _G.WOW_PROJECT_MAINLINE)
-	local isCataClassic = (_G.WOW_PROJECT_ID == _G.WOW_PROJECT_CATACLYSM_CLASSIC)
+	local isRetail = (WOW_PROJECT_ID == WOW_PROJECT_MAINLINE)
+	local isCataClassic = (WOW_PROJECT_ID == WOW_PROJECT_CATACLYSM_CLASSIC)
+	local maxProfCount = isRetail and 5 or 6
 
 	-- GLOBALS: DMFQConfig, DEBUG_CHAT_FRAME
 
@@ -70,6 +71,7 @@
 		AutoBuy = true,
 		HideLow = false,
 		HideMax = false,
+		ShowInCapitals = false,
 		-- Quests
 		PetBattle = true,
 		DeathMetalKnight = true,
@@ -155,6 +157,19 @@
 		}
 
 	-- Portal Areas
+		local capitalCityAreaIDs = {
+			-- https://wow.tools/dbc/?dbc=uimap
+			-- Alliance
+			[84] = true, -- Stormwind City
+			[87] = true, -- Ironforge
+			[89] = true, -- Darnassus
+			[103] = true, -- The Exodar (BC)
+			-- Horde
+			[85] = true, -- Orgrimmar
+			[88] = true, -- Thunder Bluff
+			[90] = true, -- Undercity
+			[110] = true, -- Silvermoon City (BC)
+		}
 		local subZoneAreaIDs = { -- uiMapIDs and their matching subZone areaIDs
 			--[[
 			-- https://wow.tools/dbc/?dbc=uimap
@@ -480,10 +495,10 @@
 			if self:CheckForPortalZone() and self:CheckForDMF() then
 				if (not eventsAlreadyRegistered) then
 					eventsAlreadyRegistered = true
-					self:RegisterEvent("BAG_UPDATE")
+					self:RegisterEvent("BAG_UPDATE_DELAYED")
 					--self:RegisterEvent("MERCHANT_FILTER_ITEM_UPDATE")
 					self:RegisterEvent("PLAYER_INTERACTION_MANAGER_FRAME_SHOW")
-					self:RegisterEvent("MERCHANT_UPDATE")
+					--self:RegisterEvent("MERCHANT_UPDATE")
 					self:RegisterEvent("QUEST_ACCEPTED")
 					self:RegisterEvent("QUEST_DETAIL")
 					self:RegisterEvent("QUEST_REMOVED")
@@ -503,7 +518,7 @@
 				return
 			elseif (eventsAlreadyRegistered) then
 				eventsAlreadyRegistered = false
-				self:UnregisterEvent("BAG_UPDATE")
+				self:UnregisterEvent("BAG_UPDATE_DELAYED")
 				self:UnregisterEvent("PLAYER_INTERACTION_MANAGER_FRAME_SHOW")
 				self:UnregisterEvent("QUEST_ACCEPTED")
 				self:UnregisterEvent("QUEST_DETAIL")
@@ -562,6 +577,7 @@
 		f.ZONE_CHANGED_NEW_AREA = f.PLAYER_ENTERING_WORLD	-- Fires when the player enters a new zone.
 
 	-- Merchant
+		--[[
 		local lastShoppingTime = 0
 		local shoppingSpreeLimit = 2  -- Don't let AutoBuy fire more than once per every 2 seconds
 		do -- MERCHANT throttling
@@ -582,6 +598,11 @@
 			end
 
 			local function ThrottleBuyItems(...)
+				if db.debug then
+					Debug("MERCHANT_UPDATE")
+					return
+				end
+
 				if (not throttling) then
 					Debug("-- Merchant: Throttling Buy Items", ... and #(...))
 
@@ -593,34 +614,37 @@
 			f.MERCHANT_UPDATE = ThrottleBuyItems
 			f.MERCHANT_FILTER_ITEM_UPDATE = ThrottleBuyItems
 		end
+		]]
 
+		local lockAutoBuy = false
 		function f:PLAYER_INTERACTION_MANAGER_FRAME_SHOW(event, interactionType) -- Show and Hide events have been streamlined into PLAYER_INTERACTION_MANAGER_FRAME_SHOW/HIDE in 10.0
 			if interactionType == Enum.PlayerInteractionType.Merchant then
-				f.MERCHANT_UPDATE()
+				--f.MERCHANT_UPDATE()
+				if (not lockAutoBuy) then
+					if f:CheckForDMF() and (f:IsShown() or (C_QuestLog.GetLogIndexForQuestID(29506) and C_QuestLog.GetLogIndexForQuestID(29506) > 0)) then -- 29506 = A Fizzy Fusion
+						lockAutoBuy = true
+						f:AutoBuyItems()
+					else
+						Debug(" !!! Something weird happened !!!")
+					end
+				else
+					Debug(" !!! Block AutoBuy !!!")
+				end
 			end
 		end
 
 	-- Bags
 		do -- UpdateItemButtons and UpdateTextLines throttling
-			local throttling
-
 			local function DelayedUpdateItemButtons(...)
-				throttling = nil
-
 				f:UpdateItemButtons()
 				f:UpdateTextLines()
+				lockAutoBuy = false
 			end
 
-			local function ThrottleUpdateItemButtons()
-				if (not throttling) then
-					Debug("-- Bags: Throttling Items and Quests Update")
-
-					C_Timer.After(0.5, DelayedUpdateItemButtons)
-					throttling = true
-				end
+			function f:BAG_UPDATE_DELAYED(event) -- Fired after all applicable BAG_UPDATE events for a specific action have been fired.
+				-- This fires only once or twice for all the items, BAG_UPDATE fires twice per item
+				C_Timer.After(0, DelayedUpdateItemButtons) -- Fire on next frame in hopes we don't fire this for more than once
 			end
-
-			f.BAG_UPDATE = ThrottleUpdateItemButtons
 		end
 
 	-- Quests
@@ -1034,6 +1058,14 @@
 				end
 
 				return true
+			elseif
+				(db.ShowInCapitals and capitalCityAreaIDs[uiMapID]) -- ShowInCapitals is on and we are in capital city
+			then
+				if db.isPTR then -- PTR Debug
+					Debug("  -- Capital:", uiMapID, info.name, subZone)
+				end
+
+				return true
 			end
 		end
 
@@ -1147,17 +1179,19 @@
 
 			-- Iterate Professions
 			local profCount = 0
-			for j = 1, 6 do
+			for j = 1, maxProfCount do
 				if ProfData and ProfData[j] then
 					Debug(" -->", j, ProfData[j].name, "OK")
 					profCount = profCount + 1
+				else
+					Debug(" -->", j, "n/a FAIL")
 				end
 			end
 			Debug(" -> Data: %d / %d", #ProfData, profCount)
 		end
 
 		--for i = 1, #ProfData do
-		for i = 1, 6 do
+		for i = 1, maxProfCount do
 			local prof = ProfData[i]
 
 			if prof and prof.professionId then
@@ -1441,7 +1475,7 @@
 		local receiptTitleForAutoBuyShown = false
 
 		--for i = 1, #ProfData do
-		for i = 1, 6 do
+		for i = 1, maxProfCount do
 			local prof = ProfData[i]
 
 			-- Check we have profession, we are at or above minimum skillLevel and the profession isn't Archaeology because it uses currency instead of items for turn in
@@ -1513,7 +1547,7 @@
 			Print(L.ChatMessage_AutoBuy_Total, GetCoinText(totalCost, " "))
 		end
 
-		lastShoppingTime = GetTime()
+		--lastShoppingTime = GetTime()
 	end
 
 	-- Reset Settings
@@ -1703,6 +1737,7 @@
 		AutoBuy = true,
 		HideLow = false,
 		HideMax = false,
+		ShowInCapitals = false,
 		-- Quests
 		PetBattle = true,
 		DeathMetalKnight = true,
@@ -1853,6 +1888,13 @@ local DMFQConfig = {
 					order = 30,
 					name = L.Config_ExtraFeatures_HideMax,
 					desc = L.Config_ExtraFeatures_HideMax_Desc,
+					type = "toggle",
+					width = 1.5
+				},
+				ShowInCapitals = {
+					order = 40,
+					name = L.Config_ExtraFeatures_ShowInCapitals,
+					desc = L.Config_ExtraFeatures_ShowInCapitals_Desc,
 					type = "toggle",
 					width = 1.5
 				}
