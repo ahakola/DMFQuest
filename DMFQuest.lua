@@ -23,27 +23,25 @@
 
 	local isRetail = (WOW_PROJECT_ID == WOW_PROJECT_MAINLINE)
 	local isCataClassic = (WOW_PROJECT_ID == WOW_PROJECT_CATACLYSM_CLASSIC)
-	local maxProfCount = isRetail and 5 or 6
+	local maxProfCount = isRetail and 5 or 6 -- First Aid removed in Patch 8.0.1 (2018-07-17)
+	local maxItemButtonCount = isRetail and 10 or 9 -- Moonfang's Pelt added in Patch 5.4.0 (2013-09-10)
+	local ptrDebugDay = isRetail and 7 or 14
 
 	-- GLOBALS: DMFQConfig, DEBUG_CHAT_FRAME
 
-	-- GLOBALS: GREEN_FONT_COLOR, ORANGE_FONT_COLOR, RED_FONT_COLOR
-
-	-- GLOBALS: BINDING_HEADER_DEBUG, CONFIRM_RESET_SETTINGS, GARRISON_MISSION_REWARD_HEADER, 
-	-- GLOBALS: HUD_EDIT_MODE_SETTING_AURA_FRAME_ICON_DIRECTION_DOWN,
-	-- GLOBALS: HUD_EDIT_MODE_SETTING_AURA_FRAME_ICON_DIRECTION_UP, MISCELLANEOUS, RESET_ALL_BUTTON_TEXT,
-	-- GLOBALS: RESET_TO_DEFAULT, SHOW_PET_BATTLES_ON_MAP_TEXT, TIMEMANAGER_TOOLTIP_REALMTIME
-
-	-- GLOBALS: C_AddOns, C_Calendar, C_Container, C_CurrencyInfo, C_DateAndTime, C_Map, C_MapExplorationInfo,
-	-- GLOBALS: C_QuestLog, C_Timer, C_TradeSkillUI, C_UI
-
-	-- GLOBALS: AcceptQuest, BuyMerchantItem, CalendarFrame, ChatFrame3, ChatFrame4, Constants, CreateFrame,
-	-- GLOBALS: DEFAULT_CHAT_FRAME, Enum, format, GameTooltip, GetBuildInfo, GetCoinText, GetItemCount,
-	-- GLOBALS: GetMerchantItemID, GetMerchantItemInfo, GetMerchantItemLink, GetMerchantItemMaxStack,
-	-- GLOBALS: GetMerchantNumItems, GetMinimapZoneText, GetMoney, GetProfessionInfo, GetProfessions, GetQuestID,
-	-- GLOBALS: GetQuestObjectiveInfo, InCombatLockdown, InterfaceOptionsFrame_OpenToCategory, ipairs, Item, math, next,
-	-- GLOBALS: pairs, PlaySound, PROFESSION_RANKS, Settings, SOUNDKIT, string, strjoin, strsplit, strtrim, time,
-	-- GLOBALS: tonumber, tostring, tostringall, type, UIParent, UnitPosition, unpack, wipe
+	-- GLOBALS: AcceptQuest, BINDING_HEADER_DEBUG, BuyMerchantItem, C_AddOns, C_Calendar, C_Container, C_CurrencyInfo
+	-- GLOBALS: C_DateAndTime, C_Item, C_Map, C_MapExplorationInfo, C_QuestLog, C_Timer, C_TradeSkillUI, CalendarFrame
+	-- GLOBALS: ChatFrame3, ChatFrame4, CONFIRM_RESET_SETTINGS, Constants, CreateFontStringPool, CreateFrame
+	-- GLOBALS: DEFAULT_CHAT_FRAME, Enum, format, GameTooltip, GARRISON_MISSION_REWARD_HEADER, GetBuildInfo
+	-- GLOBALS: GetMerchantItemID, GetMerchantItemInfo, GetMerchantItemLink, GetMerchantItemMaxStack
+	-- GLOBALS: GetMerchantNumItems, GetMinimapZoneText, GetMoney, GetProfessionInfo, GetProfessions, GetQuestID
+	-- GLOBALS: GetScreenHeight, GetScreenWidth, GREEN_FONT_COLOR, HUD_EDIT_MODE_SETTING_AURA_FRAME_ICON_DIRECTION_DOWN
+	-- GLOBALS: HUD_EDIT_MODE_SETTING_AURA_FRAME_ICON_DIRECTION_UP, InCombatLockdown
+	-- GLOBALS: InterfaceOptionsFrame_OpenToCategory, ipairs, Item, math, MISCELLANEOUS, next, ORANGE_FONT_COLOR, pairs
+	-- GLOBALS: PlaySound, PROFESSION_RANKS, RED_FONT_COLOR, RESET_ALL_BUTTON_TEXT, RESET_TO_DEFAULT, Settings
+	-- GLOBALS: SHOW_PET_BATTLES_ON_MAP_TEXT, SlashCmdList, SOUNDKIT, string, strjoin, strsplit, strtrim, time
+	-- GLOBALS: TIMEMANAGER_TOOLTIP_REALMTIME, tonumber, tostring, tostringall, type, UIParent, UnitPosition, unpack
+	-- GLOBALS: wipe, WOW_PROJECT_CATACLYSM_CLASSIC, WOW_PROJECT_ID, WOW_PROJECT_ID, WOW_PROJECT_MAINLINE
 
 
 --[[----------------------------------------------------------------------------
@@ -58,7 +56,7 @@
 		minimum of level 1, and completing the quest still adds points to the
 		highest expansion's profession level known.
 	------------------------------------------------------------------------]]--
-	local minimumSkillRequired = 1 -- This used to be 75
+	local minimumSkillRequired = isRetail and 1 or 75 -- This used to be 75
 	local currentSkillCap = PROFESSION_RANKS[#PROFESSION_RANKS][1] or 75
 	local dbDefaults = {
 		-- Frame
@@ -157,18 +155,19 @@
 		}
 
 	-- Portal Areas
+		-- For some reason areaIDs change between Retail and CataClassic while subZoneAreaIDs stay the same?
 		local capitalCityAreaIDs = {
 			-- https://wow.tools/dbc/?dbc=uimap
 			-- Alliance
-			[84] = true, -- Stormwind City
-			[87] = true, -- Ironforge
-			[89] = true, -- Darnassus
-			[103] = true, -- The Exodar (BC)
+			[isRetail and 84 or 1453] = true, -- Stormwind City
+			[isRetail and 87 or 1455] = true, -- Ironforge
+			[isRetail and 89 or 1457] = true, -- Darnassus
+			[isRetail and 103 or 1947] = true, -- The Exodar (BC)
 			-- Horde
-			[85] = true, -- Orgrimmar
-			[88] = true, -- Thunder Bluff
-			[90] = true, -- Undercity
-			[110] = true, -- Silvermoon City (BC)
+			[isRetail and 85 or 1454] = true, -- Orgrimmar
+			[isRetail and 88 or 1456] = true, -- Thunder Bluff
+			[isRetail and 90 or 1458] = true, -- Undercity
+			[isRetail and 110 or 1954] = true -- Silvermoon City (BC)
 		}
 		local subZoneAreaIDs = { -- uiMapIDs and their matching subZone areaIDs
 			--[[
@@ -182,18 +181,18 @@
 			]]--
 
 			-- Alliance
-			[37] = {	-- Elwynn Forrest
+			[isRetail and 37 or 1429] = {	-- Elwynn Forrest
 				87,			-- Goldshire (Town)
 				5637		-- Lion's Pride Inn (Inn)
 			},
 			-- Horde
-			[7] = {		-- Mulgore
+			[isRetail and 7 or 1412] = {	-- Mulgore
 				-- These both return Mulgore for GetMinimapZoneText() and empty string for GetSubZoneText()
 				-- Also the changing of GetMinimapZoneText() is kind of hit or miss depending on the direction you arrive to the Portal from
 				404,		-- Bael'dun Digsite (SW from Portal)
 				1638		-- Thunder Bluff (Next to the city, but not quite in it yet)
 			},
-			[88] = {	-- Thunder Bluff
+			[isRetail and 88 or 1456] = {	-- Thunder Bluff
 				1638,		-- Thunder Bluff (Central Rise)
 				1639,		-- Elder Rise (Eastern Rise)
 				1640,		-- Spirit Rise (Northern Rise)
@@ -321,7 +320,7 @@
 					2548, 2547, 2546, 2545, 2544, 2543, 2542, 2541, 2752, 2824
 				},
 				--[129] = { -- First Aid
-				--}
+				--},
 				[356] = { -- Fishing
 					2592, 2591, 2590, 2589, 2588, 2587, 2586, 2585, 2754, 2826
 				}
@@ -334,20 +333,24 @@
 				QuestIdTable = {
 					32175, -- Jeremy Feasel - Darkmoon Pet Battle!
 					36471 -- Christoph VonFeasel - A New Darkmoon Challenger!
-				}
+				},
+				QuestAvailableCount = (isRetail) and 2 or 0 -- Patch 5.0.4 (2012-08-28) / Patch 6.0.2 (2014-10-14)
 			},
 			DeathMetalKnight = {
 				Icon = 236362,
-				QuestId = 47767 -- Death Metal Knight
+				QuestId = 47767, -- Death Metal Knight
+				QuestAvailable = (isRetail) -- Patch 7.2.5 (2017-06-13)
 			},
 			TestYourStrength = {
 				Icon = 136101,
-				QuestId = 29433 -- Test Your Strenght
+				QuestId = 29433, -- Test Your Strenght
+				QuestAvailable = true -- Patch 4.3.0 (2011-11-29)
 			},
 			FadedTreasureMap = { -- One time Quest starting from Vendor bought item
 				Icon = 237388,
 				QuestId = 38934, -- Silas' Secret Stash
-				StartItemId = 126930 -- Faded Treasure Map
+				StartItemId = 126930, -- Faded Treasure Map
+				QuestAvailable = (isRetail) -- Patch 6.2.0 (2015-06-23)
 			}
 		}
 
@@ -502,7 +505,9 @@
 					self:RegisterEvent("QUEST_ACCEPTED")
 					self:RegisterEvent("QUEST_DETAIL")
 					self:RegisterEvent("QUEST_REMOVED")
-					self:RegisterEvent("QUEST_DATA_LOAD_RESULT")
+					if isRetail then
+						self:RegisterEvent("QUEST_DATA_LOAD_RESULT")
+					end
 				end
 
 				if self.initDone then -- Limit calls to these during Login/ReloadUI
@@ -523,7 +528,9 @@
 				self:UnregisterEvent("QUEST_ACCEPTED")
 				self:UnregisterEvent("QUEST_DETAIL")
 				self:UnregisterEvent("QUEST_REMOVED")
-				self:UnregisterEvent("QUEST_DATA_LOAD_RESULT")
+				if isRetail then
+					self:UnregisterEvent("QUEST_DATA_LOAD_RESULT")
+				end
 			end
 
 			if (self:IsShown()) and (not isFramePinned) then
@@ -675,7 +682,7 @@
 
 		local questDataRequests = {}
 		-- Check if out previously requested QuestData from f:UpdateTextLines() has arrived
-		function f:QUEST_DATA_LOAD_RESULT(questID, success)
+		function f:QUEST_DATA_LOAD_RESULT(questID, success) -- Retail only ATM
 			if questDataRequests[questID] then --and success then -- At least on PTR success always seems to return false
 				questDataRequests[questID] = nil
 				self:UpdateTextLines()
@@ -707,7 +714,8 @@
 
 	function f:CreateUI()
 		Debug("CreateUI")
-		self.fixedWidth = 324
+		local scalerForClassic = isRetail and 1 or 324/410 -- ~.79% in Classic
+		self.fixedWidth = 324*scalerForClassic
 		self.minimumHeight = 150
 		self.heightPadding = 72 -- (TopBorder 2px, Title 20px, TopSeparator 2px) + (TopPadding 6px, Text [Dynamic], BottomPadding 6px) + (BottomSeparator 2px, Buttons 32px, BottomBorder 2px)
 
@@ -730,7 +738,11 @@
 
 		-- TitleText
 		local titleText = self:CreateFontString(nil, "OVERLAY", "GameFontNormal") -- FontSize 12
-		titleText:SetPoint("CENTER", self, "TOP", 0, -12)
+		if isRetail then
+			titleText:SetPoint("CENTER", self, "TOP", 0, -12)
+		else -- Positioning is off in CataClassic?
+			titleText:SetPoint("CENTER", self, "TOP", 0, -9)
+		end
 		titleText:SetText(self.addonTitle)
 		self.TitleText = titleText
 
@@ -759,7 +771,11 @@
 		-- CloseButton
 		local closeButton = CreateFrame("Button", nil, self, "UIPanelCloseButton")
 		closeButton:SetSize(28, 28)
-		closeButton:SetPoint("TOPRIGHT", 2, 1)
+		if isRetail then
+			closeButton:SetPoint("TOPRIGHT", 2, 1)
+		else -- Positioning is off in CataClassic?
+			closeButton:SetPoint("TOPRIGHT", 5, 5)
+		end
 		closeButton:GetNormalTexture():SetVertexColor(
 			blendColors(
 				{
@@ -782,9 +798,13 @@
 		end)
 
 		-- ItemButtons
-		for i = 1, #itemButtonOrder do
+		for i = 1, maxItemButtonCount do
+
 			local b = CreateFrame("Button", nil, self)
 			b:SetSize(32, 32)
+			if isCataClassic then -- Buttons are too big in CataClassic, ~40px instead of 32px?
+				b:SetScale(scalerForClassic)
+			end
 
 			b.tooltipText = ""
 			b.itemStatus = 4
@@ -815,7 +835,7 @@
 
 		-- Profession Container
 		local prefessionContainer = CreateFrame("Frame", nil, self, "ResizeLayoutFrame") -- ResizeLayoutFrame
-		prefessionContainer.fixedWidth = 320
+		prefessionContainer.fixedWidth = 320*scalerForClassic
 		prefessionContainer.minimumHeight = 50
 		prefessionContainer:SetPoint("TOP", 0, -24)
 		self.Container = prefessionContainer
@@ -920,7 +940,7 @@
 			minute		number	The current time in minutes [0-59]
 		]]--
 		if self.startTime > 0 and self.endTime > 0 then
-			if (db.debug and db.isPTR) then currentCalendarTime.monthDay = 7 end -- PTR Debug
+			if (db.debug and db.isPTR) then currentCalendarTime.monthDay = ptrDebugDay end -- PTR Debug
 			currentCalendarTime.day = currentCalendarTime.monthDay
 			local currentEpoch = time(currentCalendarTime)
 
@@ -944,7 +964,7 @@
 
 		currentCalendarTime = _shiftTimeTables(currentCalendarTime)
 		Debug("- Date and Time: %d.%d.%d   %d:%d (%s%d)", currentCalendarTime.year, currentCalendarTime.month, currentCalendarTime.monthDay, currentCalendarTime.hour, currentCalendarTime.minute, db.TimeOffsetValue < 0 and "-" or "+", db.TimeOffsetValue)
-		if (db.debug and db.isPTR) then currentCalendarTime.monthDay = 7 end -- PTR Debug
+		if (db.debug and db.isPTR) then currentCalendarTime.monthDay = ptrDebugDay end -- PTR Debug
 		local numDayEvents = C_Calendar.GetNumDayEvents(0, currentCalendarTime.monthDay)
 
 		Debug("- Check HolidayInfo")
@@ -1005,68 +1025,79 @@
 		Debug("CheckForPortalZone")
 
 		local uiMapID = C_Map.GetBestMapForUnit("player")
-		if uiMapID then
-			local info = C_Map.GetMapInfo(uiMapID)
-			local subZone = GetMinimapZoneText() --GetSubZoneText()
-			local subZoneMatch = false
-			Debug("- Map", uiMapID, info.name, info.mapType, subZone)
+		if not uiMapID then
+			return false
+		end
 
-			if subZoneAreaIDs[uiMapID] then
-				Debug("- Search for subZoneMatch")
-				for i = 1, #subZoneAreaIDs[uiMapID] do
-					Debug("  -- ", i, "/", #subZoneAreaIDs[uiMapID], "-", subZoneAreaIDs[uiMapID][i], C_Map.GetAreaInfo(subZoneAreaIDs[uiMapID][i]))
-					local areaName = cacheAreaNames[subZoneAreaIDs[uiMapID][i]] or C_Map.GetAreaInfo(subZoneAreaIDs[uiMapID][i]) -- Check if we have cached this areaName already
-					if (areaName == subZone) or (uiMapID == 7 and info.name == subZone) then
-						cacheAreaNames[subZoneAreaIDs[uiMapID][i]] = cacheAreaNames[subZoneAreaIDs[uiMapID][i]] or areaName -- Cache areaName for later use to reduce function calls
-						subZoneMatch = true
-						Debug("  <== Found subZoneMatch:", subZoneAreaIDs[uiMapID][i], subZone)
-						break
+		local info = C_Map.GetMapInfo(uiMapID)
+		local subZone = GetMinimapZoneText() --GetSubZoneText()
+		local subZoneMatch = false
+		Debug("- Map", uiMapID, info.name, info.mapType, subZone)
+
+		if subZoneAreaIDs[uiMapID] then
+			Debug("- Search for subZoneMatch")
+			for i = 1, #subZoneAreaIDs[uiMapID] do
+				Debug("  -- ", i, "/", #subZoneAreaIDs[uiMapID], "-", subZoneAreaIDs[uiMapID][i], C_Map.GetAreaInfo(subZoneAreaIDs[uiMapID][i]))
+				local areaName = cacheAreaNames[subZoneAreaIDs[uiMapID][i]] or C_Map.GetAreaInfo(subZoneAreaIDs[uiMapID][i]) -- Check if we have cached this areaName already
+				if
+					(areaName == subZone)
+				or
+					(
+						((isRetail and uiMapID == 7) or (isCataClassic and uiMapID == 1412))
+					and
+						info.name == subZone
+					)
+				then -- Match or check for Mulgore
+					cacheAreaNames[subZoneAreaIDs[uiMapID][i]] = cacheAreaNames[subZoneAreaIDs[uiMapID][i]] or areaName -- Cache areaName for later use to reduce function calls
+					subZoneMatch = true
+					Debug("  <== Found subZoneMatch:", subZoneAreaIDs[uiMapID][i], subZone)
+					break
+				end
+			end
+		end
+
+		--[[
+			/dump C_Map.GetBestMapForUnit("player")
+			/dump C_Map.GetMapInfo(C_Map.GetBestMapForUnit("player"))
+			/dump C_MapExplorationInfo.GetExploredAreaIDsAtPosition(7, C_Map.GetPlayerMapPosition(7, "player"))
+			/dump C_Map.GetAreaInfo(1638)
+
+			Mulgore Portal
+			/dump UnitPosition("player")
+			x, y = -1472, 196
+			/dump format("%.5f x %.5f", C_Map.GetPlayerMapPosition(C_Map.GetBestMapForUnit("player"), "player"):GetXY())
+			x, y= .36852, .35870
+		]]--
+		if
+			--(uiMapID == 37 or uiMapID == 88 or uiMapID == 7) -- Elwynn Forrest // Thunder Bluff // Mulgore
+			subZoneAreaIDs[uiMapID] -- Elwynn Forrest // Thunder Bluff // Mulgore
+		and
+			subZoneMatch -- Goldshire or Lion's Pride Inn // Thunder Bluff, Any of the Rises or The Cat and the Shaman // Special handling for Mulgore
+		then
+			if db.isPTR then -- PTR Debug
+				local position = C_Map.GetPlayerMapPosition(uiMapID, "player")
+				local areaID = C_MapExplorationInfo.GetExploredAreaIDsAtPosition(uiMapID, position)
+				Debug("-- Check areaIDs")
+				if areaID then
+					for i = 1, #areaID do
+						Debug("  -- ", i, "/", #areaID, "-", areaID[i], C_Map.GetAreaInfo(areaID[i]))
 					end
 				end
 			end
 
-			--[[
-				/dump C_Map.GetBestMapForUnit("player")
-				/dump C_Map.GetMapInfo(C_Map.GetBestMapForUnit("player"))
-				/dump C_MapExplorationInfo.GetExploredAreaIDsAtPosition(7, C_Map.GetPlayerMapPosition(7, "player"))
-				/dump C_Map.GetAreaInfo(1638)
-
-				Mulgore Portal
-				/dump UnitPosition("player")
-				x, y = -1472, 196
-				/dump format("%.5f x %.5f", C_Map.GetPlayerMapPosition(C_Map.GetBestMapForUnit("player"), "player"):GetXY())
-				x, y= .36852, .35870
-			]]--
-			if
-				(uiMapID == 37 or uiMapID == 88 or uiMapID == 7) -- Elwynn Forrest // Thunder Bluff // Mulgore
-			and
-				subZoneMatch -- Goldshire or Lion's Pride Inn // Thunder Bluff, Any of the Rises or The Cat and the Shaman // Special handling for Mulgore
-			then
-				if db.isPTR then -- PTR Debug
-					local position = C_Map.GetPlayerMapPosition(uiMapID, "player")
-					local areaID = C_MapExplorationInfo.GetExploredAreaIDsAtPosition(uiMapID, position)
-					Debug("-- Check areaIDs")
-					if areaID then
-						for i = 1, #areaID do
-							Debug("  -- ", i, "/", #areaID, "-", areaID[i], C_Map.GetAreaInfo(areaID[i]))
-						end
-					end
-				end
-
-				if uiMapID == 7 then -- Weird stuff happens in Mulgore
-					return _isPortalInRange(-1472, 196, UnitPosition("player"))
-				end
-
-				return true
-			elseif
-				(db.ShowInCapitals and capitalCityAreaIDs[uiMapID]) -- ShowInCapitals is on and we are in capital city
-			then
-				if db.isPTR then -- PTR Debug
-					Debug("  -- Capital:", uiMapID, info.name, subZone)
-				end
-
-				return true
+			if ((isRetail and uiMapID == 7) or (isCataClassic and uiMapID == 1412)) then -- Weird stuff happens in Mulgore
+				return _isPortalInRange(-1472, 196, UnitPosition("player"))
 			end
+
+			return true
+		elseif
+			(db.ShowInCapitals and capitalCityAreaIDs[uiMapID]) -- ShowInCapitals is on and we are in capital city
+		then
+			if db.isPTR then -- PTR Debug
+				Debug("  -- Capital:", uiMapID, info.name, subZone)
+			end
+
+			return true
 		end
 
 		return false
@@ -1092,7 +1123,7 @@
 
 	function f:UpdateItemButtons() -- Update turnInItem-buttons
 		Debug("UpdateItemButtons")
-		for i = 1, #itemButtonOrder do
+		for i = 1, maxItemButtonCount do
 			local button = self["itemButton" .. i]
 			local itemId = button.itemId
 			local questId = turnInItems[itemId]
@@ -1108,7 +1139,7 @@
 				button.tooltipText = L.Quest_QuestReady
 				button.itemStatus = 2
 
-			elseif questId and GetItemCount(itemId) > 0 or (db.debug and db.isPTR and i == 8) then -- Item, not on Quest (yet)
+			elseif questId and C_Item.GetItemCount(itemId) > 0 or (db.debug and db.isPTR and i == 8) then -- Item, not on Quest (yet)
 				Debug("- %d ItemNoQuest", i)
 				button.tooltipText = L.Quest_QuestReadyToAccept
 				button.itemStatus = 3
@@ -1168,15 +1199,15 @@
 		Debug("UpdateTextLines")
 		delayLock = false
 
-		if updateCount == 0 then
-			-- Release previously used FontStrings
-			Debug(" -> PRE:", #activeStrings)
-			for s = #activeStrings, 1, -1 do
-				stringPool:Release(activeStrings[s])
-				activeStrings[s] = nil
-			end
-			Debug(" -> POST:", #activeStrings)
+		-- Release previously used FontStrings
+		Debug(" -> PRE:", #activeStrings)
+		for s = #activeStrings, 1, -1 do
+			stringPool:Release(activeStrings[s])
+			activeStrings[s] = nil
+		end
+		Debug(" -> POST:", #activeStrings)
 
+		if updateCount == 0 then
 			-- Iterate Professions
 			local profCount = 0
 			for j = 1, maxProfCount do
@@ -1196,9 +1227,9 @@
 
 			if prof and prof.professionId then
 				Debug("- %d %s (%d) %d/%d", i, prof.name, prof.professionId, prof.skillLevel, prof.maxSkillLevel)
-				if prof.maxSkillLevel == 0 and updateCount < 5 then
+				if isRetail and prof.maxSkillLevel == 0 and updateCount < 5 then
 					updateCount = updateCount + 1
-					Debug(" !!! maxSkillLevel 0 !!!", updateCount)
+					Debug(" !!! maxSkillLevel 0 !!! --> Count:", updateCount)
 					f:UpdateProfessions(true)
 					return
 				end
@@ -1229,7 +1260,7 @@
 						end
 					elseif questData.questItems and next(questData.questItems) then -- This quest requires items
 						for itemId, requiredAmount in pairs(questData.questItems) do
-							local itemCount = GetItemCount(itemId)
+							local itemCount = C_Item.GetItemCount(itemId)
 							local itemName
 							if cacheItemNames[itemId] then
 								itemName = cacheItemNames[itemId]
@@ -1275,10 +1306,14 @@
 		end
 
 		-- Additional Quests
-		if db.PetBattle then
-			local questIcon = additionalQuests.PetBattle.Icon
+		if (additionalQuests.PetBattle.QuestAvailableCount > 0) and db.PetBattle then
+			local questIcon = additionalQuests.PetBattle.Icon -- 631719
 			local questCount, questMaxCount = 0, #additionalQuests.PetBattle.QuestIdTable
-			for _, questId in ipairs(additionalQuests.PetBattle.QuestIdTable) do
+			--for _, questId in ipairs(additionalQuests.PetBattle.QuestIdTable) do
+			for questIndex = 1, additionalQuests.PetBattle.QuestAvailableCount do
+				local questId = additionalQuests.PetBattle.QuestIdTable[questIndex]
+				-- 32175 / Jeremy Feasel - Darkmoon Pet Battle!
+				-- 36471 / Christoph VonFeasel - A New Darkmoon Challenger!
 				if C_QuestLog.IsQuestFlaggedCompleted(questId) then
 					questCount = questCount + 1
 				end
@@ -1291,9 +1326,9 @@
 			_getTextLine("|T%d:0|t %s\n%s %s %s\n", questIcon, SHOW_PET_BATTLES_ON_MAP_TEXT, strtrim(petBattleQuestTextLine), SHOW_PET_BATTLES_ON_MAP_TEXT, L.Quest_ActivityDone)
 		end
 
-		if db.DeathMetalKnight then
-			local questId = additionalQuests.DeathMetalKnight.QuestId
-			local questIcon = additionalQuests.DeathMetalKnight.Icon
+		if (additionalQuests.DeathMetalKnight.QuestAvailable) and db.DeathMetalKnight then
+			local questId = additionalQuests.DeathMetalKnight.QuestId -- 47767 / Death Metal Knight
+			local questIcon = additionalQuests.DeathMetalKnight.Icon -- 236362
 			local questDone = C_QuestLog.IsQuestFlaggedCompleted(questId)
 
 			local questTitle = L.QuestTitleFix_DeathMetalKnight -- API doesn't return questName for this hidden quest
@@ -1311,27 +1346,39 @@
 			_getTextLine("|T%d:0|t %s\n%s", questIcon, questTitle or "DMKtitle n/a", strtrim(questTextLine))
 		end
 
-		if db.TestYourStrength then
-			local questId = additionalQuests.TestYourStrength.QuestId
-			local questIcon = additionalQuests.TestYourStrength.Icon
+		if (additionalQuests.TestYourStrength.QuestAvailable) and db.TestYourStrength then
+			local questId = additionalQuests.TestYourStrength.QuestId -- 29433 / Test Your Strenght
+			local questIcon = additionalQuests.TestYourStrength.Icon -- 136101
 			local questDone = C_QuestLog.IsQuestFlaggedCompleted(questId)
-			local questProgressText, _, _, fulfilled, required = GetQuestObjectiveInfo(questId, 1, false)
+			local objectives = C_QuestLog.GetQuestObjectives(questId)
+			--[[
+				objectives -- table - a table (can be an empty table for quests without objectives) containing: a subtable for each objective which in turn contains the below values
+				Field			Type		Description
+				text			string		the text displayed in the quest log and the quest tracker
+				type			string		"monster", "item", etc.
+				finished		boolean		true if the objective has been completed
+				numFulfilled	number		number of partial objectives fulfilled
+				numRequired		number		number of partial objectives required 
+			]]
+			if #objectives > 0 then
+				objectives = objectives[1]
+			end
 
-			local questTitle = C_QuestLog.GetTitleForQuestID(questId)
+			local questTitle = isRetail and C_QuestLog.GetTitleForQuestID(questId) or C_QuestLog.GetQuestInfo(questId)
 			if (not questTitle) and (not questDataRequests[questId]) then -- Request only once
 				C_QuestLog.RequestLoadQuestByID(questId)
 				questDataRequests[questId] = true
 			end
 
-			local textColor = questDone and GREEN_FONT_COLOR or fulfilled == required and ORANGE_FONT_COLOR or RED_FONT_COLOR
-			local questTextLine = textColor:WrapTextInColorCode(questDone and L.Quest_QuestDone or questProgressText or L.Quest_QuestNotDone)
+			local textColor = questDone and GREEN_FONT_COLOR or objectives.numFulfilled == objectives.numRequired and ORANGE_FONT_COLOR or RED_FONT_COLOR
+			local questTextLine = textColor:WrapTextInColorCode(questDone and L.Quest_QuestDone or objectives.text or L.Quest_QuestNotDone)
 
-			Debug("- TestYourStrength - %s %s (%s - %d / %d)", questTitle or "TYStitle n/a", tostring(questDone), tostring(questProgressText), tostring(fulfilled), tostring(required))
+			Debug("- TestYourStrength - %s %s (%s - %d / %d)", questTitle or "TYStitle n/a", tostring(questDone), tostring(objectives.text), tostring(objectives.numFulfilled), tostring(objectives.numRequired))
 			_getTextLine("|T%d:0|t %s\n%s", questIcon, questTitle or "TYStitle n/a", strtrim(questTextLine))
 		end
 
-		if db.FadedTreasureMap then
-			local questStartItemId = additionalQuests.FadedTreasureMap.StartItemId
+		if (additionalQuests.FadedTreasureMap.QuestAvailable) and db.FadedTreasureMap then
+			local questStartItemId = additionalQuests.FadedTreasureMap.StartItemId -- 126930 / Faded Treasure Map
 
 			local itemName
 			if cacheItemNames[questStartItemId] then
@@ -1347,8 +1394,8 @@
 				end
 			end
 
-			local questId = additionalQuests.FadedTreasureMap.QuestId
-			local questIcon = additionalQuests.FadedTreasureMap.Icon
+			local questId = additionalQuests.FadedTreasureMap.QuestId -- 38934 / Silas' Secret Stash
+			local questIcon = additionalQuests.FadedTreasureMap.Icon -- 237388
 			local questDone = C_QuestLog.IsQuestFlaggedCompleted(questId)
 			local textColor = questDone and GREEN_FONT_COLOR or RED_FONT_COLOR
 			local questTextLine = textColor:WrapTextInColorCode(questDone and L.Quest_QuestDone or L.Quest_QuestNotDone)
@@ -1389,7 +1436,7 @@
 					ProfData[index].maxSkillLevel = 0
 				end
 
-				if index ~= 3 then
+				if (isRetail and index ~= 3) then
 					for _, skillLineId in ipairs(ProfessionTradeSkillLines[skillLine]) do
 						local skillInfo = C_TradeSkillUI.GetProfessionInfoBySkillLineID(skillLineId)
 						if skillInfo and skillInfo.maxSkillLevel and skillInfo.maxSkillLevel > 0 then
@@ -1397,7 +1444,6 @@
 							ProfData[index].skillLevel = ProfData[index].skillLevel + skillInfo.skillLevel
 							ProfData[index].maxSkillLevel = ProfData[index].maxSkillLevel + skillInfo.maxSkillLevel
 						end
-
 					end
 
 					-- Cache itemNames of the items needed for this professions Quest
@@ -1423,9 +1469,12 @@
 						end
 					end
 
-				else -- Archeology returns proper info without iterating skillLineIds
+				else -- Archeology returns proper info without iterating skillLineIds / Use this also for CataClassic
 					ProfData[index].skillLevel = skillLevel
 					ProfData[index].maxSkillLevel = maxSkillLevel
+					if skillLevel > 0 then
+						goodResults = goodResults + 1
+					end
 				end
 				Debug("- %s (%d) %d/%d", name, skillLine, ProfData[index].skillLevel, ProfData[index].maxSkillLevel)
 			end
@@ -1437,7 +1486,7 @@
 			additionalQuestItemsDone = true
 			Debug("-> Caching questStartingItems from additionalQuests")
 			for _, questData in pairs(additionalQuests) do
-				if questData and questData.StartItemId then
+				if questData and questData.StartItemId and questData.QuestAvailable then -- Don't check quests not yet in game!
 					if (not cacheItemNames[questData.StartItemId]) then
 						local item = Item:CreateFromItemID(questData.StartItemId)
 						item:ContinueOnItemLoad(function()
@@ -1486,7 +1535,7 @@
 				-- Quest not done, this quest requires items
 				if (not C_QuestLog.IsQuestFlaggedCompleted(questData.questId)) and questData.questItems and next(questData.questItems) then
 					for itemId, materialNeeds in pairs(questData.questItems) do
-						local buyCount = materialNeeds - GetItemCount(itemId)
+						local buyCount = materialNeeds - C_Item.GetItemCount(itemId)
 
 						if buyCount > 0 then -- We need to buy more of this item
 							Debug(" - Looking for %d x %d", buyCount, itemId)
@@ -1544,7 +1593,7 @@
 		if totalCost > 0 then -- End Total
 			Debug("  -- Total: %d", totalCost)
 			Print("- - - - - - - - - - - - - - -")
-			Print(L.ChatMessage_AutoBuy_Total, GetCoinText(totalCost, " "))
+			Print(L.ChatMessage_AutoBuy_Total, C_CurrencyInfo.GetCoinText(totalCost, " "))
 		end
 
 		--lastShoppingTime = GetTime()
@@ -1687,6 +1736,21 @@
 			db.FrameLock = not db.FrameLock
 			Print("Lock:", db.FrameLock)
 		end,
+		["count"] = function()
+			local areaCacheCount, itemCacheCount, totalCacheCount = 0, 0, 0
+			----------------------------------------------------------------------------------------------------
+			for _ in pairs(cacheAreaNames) do
+				areaCacheCount = areaCacheCount + 1
+				totalCacheCount = totalCacheCount + 1
+			end
+			----------------------------------------------------------------------------------------------------
+			for _ in pairs(cacheItemNames) do
+				itemCacheCount = itemCacheCount + 1
+				totalCacheCount = totalCacheCount + 1
+			end
+			----------------------------------------------------------------------------------------------------
+			Print("Cache:\nArea: %d\nItem: %d\nTotal: %d", areaCacheCount, itemCacheCount, totalCacheCount)
+		end,
 		["test"] = function()
 			Print("TEST START:")
 			----------------------------------------------------------------------------------------------------
@@ -1817,11 +1881,11 @@ local DMFQConfig = {
 				GrowDirection = {
 					order = 40,
 					name = L.Config_Frame_GrowDirection,
-					desc = string.format(L.Config_Frame_GrowDirection_Desc, HUD_EDIT_MODE_SETTING_AURA_FRAME_ICON_DIRECTION_UP, HUD_EDIT_MODE_SETTING_AURA_FRAME_ICON_DIRECTION_DOWN),
+					desc = string.format(L.Config_Frame_GrowDirection_Desc, HUD_EDIT_MODE_SETTING_AURA_FRAME_ICON_DIRECTION_UP or "Up", HUD_EDIT_MODE_SETTING_AURA_FRAME_ICON_DIRECTION_DOWN or "Down"),
 					type = "select",
 					values = {
-						[0] = HUD_EDIT_MODE_SETTING_AURA_FRAME_ICON_DIRECTION_DOWN,
-						[1] = HUD_EDIT_MODE_SETTING_AURA_FRAME_ICON_DIRECTION_UP
+						[0] = HUD_EDIT_MODE_SETTING_AURA_FRAME_ICON_DIRECTION_DOWN or "Up",
+						[1] = HUD_EDIT_MODE_SETTING_AURA_FRAME_ICON_DIRECTION_UP or "Down"
 					},
 					style = "radio"
 				},
@@ -1911,28 +1975,42 @@ local DMFQConfig = {
 					name = L.Config_Activity_PetBattle,
 					desc = L.Config_Activity_PetBattle_Desc,
 					type = "toggle",
-					width = 1.5
+					width = 1.5,
+					hidden = (additionalQuests.PetBattle.QuestAvailableCount == 0)
 				},
 				DeathMetalKnight = {
 					order = 20,
 					name = L.QuestTitleFix_DeathMetalKnight,
 					desc = string.format(L.Config_Activity_DeathMetalKnight_Desc, ORANGE_FONT_COLOR:WrapTextInColorCode(L.QuestTitleFix_DeathMetalKnight)),
 					type = "toggle",
-					width = 1.5
+					width = 1.5,
+					hidden = (not additionalQuests.DeathMetalKnight.QuestAvailable)
 				},
 				TestYourStrength = {
 					order = 30,
-					name = C_QuestLog.GetTitleForQuestID(additionalQuests.TestYourStrength.QuestId) or L.QuestTitleFix_TestYourStrength,
-					desc = string.format(L.Config_Activity_TestYourStrength_Desc, ORANGE_FONT_COLOR:WrapTextInColorCode(C_QuestLog.GetTitleForQuestID(additionalQuests.TestYourStrength.QuestId) or L.QuestTitleFix_TestYourStrength)),
+					name =
+						(isRetail and C_QuestLog.GetTitleForQuestID(additionalQuests.TestYourStrength.QuestId))
+						or
+						(isCataClassic and C_QuestLog.GetQuestInfo(additionalQuests.TestYourStrength.QuestId))
+						or
+						L.QuestTitleFix_TestYourStrength,
+					desc = string.format(L.Config_Activity_TestYourStrength_Desc, ORANGE_FONT_COLOR:WrapTextInColorCode(
+						(isRetail and C_QuestLog.GetTitleForQuestID(additionalQuests.TestYourStrength.QuestId))
+						or
+						(isCataClassic and C_QuestLog.GetQuestInfo(additionalQuests.TestYourStrength.QuestId))
+						or
+						L.QuestTitleFix_TestYourStrength)),
 					type = "toggle",
-					width = 1.5
+					width = 1.5,
+					hidden = (not additionalQuests.TestYourStrength.QuestAvailable)
 				},
 				FadedTreasureMap = {
 					order = 40,
 					name = cacheItemNames[additionalQuests.FadedTreasureMap.StartItemId] or L.QuestTitleFix_FadedTreasureMap,
 					desc = string.format(L.Config_Activity_FadedTreasureMap_Desc, ORANGE_FONT_COLOR:WrapTextInColorCode(cacheItemNames[additionalQuests.FadedTreasureMap.StartItemId] or L.QuestTitleFix_FadedTreasureMap)),
 					type = "toggle",
-					width = 1.5
+					width = 1.5,
+					hidden = (not additionalQuests.FadedTreasureMap.QuestAvailable)
 				},
 				ShowItemRewards = {
 					order = 50,
@@ -2017,7 +2095,7 @@ local DMFQConfig = {
 		},
 		ResetDB = {
 			order = 1000,
-			name = RESET_ALL_BUTTON_TEXT, -- "Reset All"
+			name = RESET_ALL_BUTTON_TEXT or "Reset All", -- "Reset All"
 			desc = RESET_TO_DEFAULT, -- "Reset To Default"
 			type = "execute",
 			func = _resetSettings,
