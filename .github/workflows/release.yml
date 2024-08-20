@@ -19,12 +19,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Create Retail Package
+      - name: Create Package
         uses: BigWigsMods/packager@v2
         with:
           args: -p 49810
-
-      - name: Create CataClassic Package
-        uses: BigWigsMods/packager@v2
-        with:
-          args: -g cata -p 49810

@@ -1,5 +1,4 @@
-## Interface: 100207
-## Interface-Cata: 40400
+## Interface: 40400, 110002
 ## Author: Kelzu (Stormreaver EU)
 ## Title: |cff8d00d1DMF|rQuest
 ## Version: @project-version@
