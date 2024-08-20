@@ -57,7 +57,9 @@
 		highest expansion's profession level known.
 	------------------------------------------------------------------------]]--
 	local minimumSkillRequired = isRetail and 1 or 75 -- This used to be 75
-	local currentSkillCap = PROFESSION_RANKS[#PROFESSION_RANKS][1] or 75
+	-- In Retail (TWW) this info is loaded on demand instead of being there always
+	-- https://www.townlong-yak.com/framexml/11.0.2/Blizzard_ProfessionsBook/Blizzard_ProfessionsBook.lua#12
+	local currentSkillCap = isRetail and 950 or PROFESSION_RANKS[#PROFESSION_RANKS][1] or 75
 	local dbDefaults = {
 		-- Frame
 		XPos = 275,
@@ -715,7 +717,7 @@
 	function f:CreateUI()
 		Debug("CreateUI")
 		local scalerForClassic = isRetail and 1 or 324/410 -- ~.79% in Classic
-		self.fixedWidth = 324*scalerForClassic
+		self.fixedWidth = 324 * scalerForClassic
 		self.minimumHeight = 150
 		self.heightPadding = 72 -- (TopBorder 2px, Title 20px, TopSeparator 2px) + (TopPadding 6px, Text [Dynamic], BottomPadding 6px) + (BottomSeparator 2px, Buttons 32px, BottomBorder 2px)
 
@@ -738,11 +740,14 @@
 
 		-- TitleText
 		local titleText = self:CreateFontString(nil, "OVERLAY", "GameFontNormal") -- FontSize 12
+		titleText:SetPoint("CENTER", self, "TOP", 0, -12 * scalerForClassic)
+		--[[
 		if isRetail then
 			titleText:SetPoint("CENTER", self, "TOP", 0, -12)
 		else -- Positioning is off in CataClassic?
 			titleText:SetPoint("CENTER", self, "TOP", 0, -9)
 		end
+		]]
 		titleText:SetText(self.addonTitle)
 		self.TitleText = titleText
 
@@ -772,8 +777,10 @@
 		local closeButton = CreateFrame("Button", nil, self, "UIPanelCloseButton")
 		closeButton:SetSize(28, 28)
 		if isRetail then
+			Debug("closeButton:SetPoint -> isRetail")
 			closeButton:SetPoint("TOPRIGHT", 2, 1)
 		else -- Positioning is off in CataClassic?
+			Debug("closeButton:SetPoint -> !isRetail")
 			closeButton:SetPoint("TOPRIGHT", 5, 5)
 		end
 		closeButton:GetNormalTexture():SetVertexColor(
@@ -835,7 +842,7 @@
 
 		-- Profession Container
 		local prefessionContainer = CreateFrame("Frame", nil, self, "ResizeLayoutFrame") -- ResizeLayoutFrame
-		prefessionContainer.fixedWidth = 320*scalerForClassic
+		prefessionContainer.fixedWidth = 320 * scalerForClassic
 		prefessionContainer.minimumHeight = 50
 		prefessionContainer:SetPoint("TOP", 0, -24)
 		self.Container = prefessionContainer
@@ -1488,6 +1495,7 @@
 			for _, questData in pairs(additionalQuests) do
 				if questData and questData.StartItemId and questData.QuestAvailable then -- Don't check quests not yet in game!
 					if (not cacheItemNames[questData.StartItemId]) then
+						Debug("!!! !!!! !!!!! ItemCaching:", questData.StartItemId)
 						local item = Item:CreateFromItemID(questData.StartItemId)
 						item:ContinueOnItemLoad(function()
 							local itemName = item:GetItemName()
@@ -2064,7 +2072,8 @@ local DMFQConfig = {
 					width = "full",
 					fontSize = "medium",
 					image = "Interface/Store/Perks",
-					imageCoords = { 0.640625, 0.669921875, 0.2421875, 0.2568359375 }
+					--imageCoords = { 0.640625, 0.669921875, 0.2421875, 0.2568359375 }
+					imageCoords = { 0.5888671875, 0.6181640625, 0.400390625, 0.4150390625 }
 				}
 			}
 		},
