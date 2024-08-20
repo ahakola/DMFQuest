@@ -44,7 +44,7 @@
 
 -- in case other addons copies this, make sure it never loads multiple times unless there is a
 -- newer version of it, in which case we disable it and load anyways
-local version = 3
+local version = 4
 if _G['ForceLoadTradeSkillData'] then
 	if _G['ForceLoadTradeSkillData'].version < version then
 		_G['ForceLoadTradeSkillData']:UnregisterAllEvents()
@@ -76,6 +76,10 @@ hack:SetScript('OnEvent', function(self, event)
 			C_TradeSkillUI.CloseTradeSkill()
 			self:UnregisterEvent(event)
 			UIParent:RegisterEvent(event)
+
+			-- unmute sounds
+			UnmuteSoundFile(SOUNDKIT.UI_PROFESSIONS_WINDOW_OPEN)
+			UnmuteSoundFile(SOUNDKIT.UI_PROFESSIONS_WINDOW_CLOSE)
 		end
 	end
 end)
@@ -84,10 +88,16 @@ function hack:OnKeyDown()
 	-- unregister ourselves first to avoid duplicate queries
 	self:SetScript('OnKeyDown', nil)
 
+	-- be silent
+	MuteSoundFile(SOUNDKIT.UI_PROFESSIONS_WINDOW_OPEN)
+	MuteSoundFile(SOUNDKIT.UI_PROFESSIONS_WINDOW_CLOSE)
+
 	-- listen for tradeskill UI opening then query it
 	UIParent:UnregisterEvent('TRADE_SKILL_SHOW')
 	self:RegisterEvent('TRADE_SKILL_SHOW')
-	C_TradeSkillUI.OpenTradeSkill(self.professionID)
+	if C_TradeSkillUI.OpenTradeSkill then
+		C_TradeSkillUI.OpenTradeSkill(self.professionID)
+	end
 end
 
 function hack:GetAnyProfessionID()
@@ -103,6 +113,9 @@ function hack:GetAnyProfessionID()
 end
 
 function hack:HasProfessionData(professionID)
+	if not C_TradeSkillUI.GetProfessionInfoBySkillLineID then
+		return false
+	end
 	local skillInfo = C_TradeSkillUI.GetProfessionInfoBySkillLineID(professionID)
 	return skillInfo and skillInfo.maxSkillLevel and skillInfo.maxSkillLevel > 0
 end
