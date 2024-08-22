@@ -1367,7 +1367,7 @@
 				numFulfilled	number		number of partial objectives fulfilled
 				numRequired		number		number of partial objectives required 
 			]]
-			if #objectives > 0 then
+			if objectives and #objectives > 0 then
 				objectives = objectives[1]
 			end
 
