@@ -2075,9 +2075,10 @@ local DMFQConfig = {
 					type = "description",
 					width = "full",
 					fontSize = "medium",
-					image = "Interface/Store/Perks",
-					--imageCoords = { 0.640625, 0.669921875, 0.2421875, 0.2568359375 }
-					imageCoords = { 0.5888671875, 0.6181640625, 0.400390625, 0.4150390625 }
+					--image = "Interface/Store/Perks",
+					--imageCoords = { 0.5888671875, 0.6181640625, 0.400390625, 0.4150390625 }
+					image = "Interface/AuctionFrame/AuctionHouse",
+					imageCoords = isRetail and { 0.958984375, 0.982421875, 0.677734375, 0.724609375 } or { 0.9306640625, 0.9541015625, 0.677734375, 0.724609375 }
 				}
 			}
 		},
