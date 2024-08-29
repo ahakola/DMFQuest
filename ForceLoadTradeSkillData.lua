@@ -95,9 +95,7 @@ function hack:OnKeyDown()
 	-- listen for tradeskill UI opening then query it
 	UIParent:UnregisterEvent('TRADE_SKILL_SHOW')
 	self:RegisterEvent('TRADE_SKILL_SHOW')
-	if C_TradeSkillUI.OpenTradeSkill then
-		C_TradeSkillUI.OpenTradeSkill(self.professionID)
-	end
+	C_TradeSkillUI.OpenTradeSkill(self.professionID)
 end
 
 function hack:GetAnyProfessionID()
@@ -113,9 +111,6 @@ function hack:GetAnyProfessionID()
 end
 
 function hack:HasProfessionData(professionID)
-	if not C_TradeSkillUI.GetProfessionInfoBySkillLineID then
-		return false
-	end
 	local skillInfo = C_TradeSkillUI.GetProfessionInfoBySkillLineID(professionID)
 	return skillInfo and skillInfo.maxSkillLevel and skillInfo.maxSkillLevel > 0
 end
