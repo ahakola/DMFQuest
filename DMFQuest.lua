@@ -1371,16 +1371,20 @@
 				objectives = objectives[1]
 			end
 
-			local questTitle = isRetail and C_QuestLog.GetTitleForQuestID(questId) or C_QuestLog.GetQuestInfo(questId)
+			local questTitle = (isRetail and C_QuestLog.GetTitleForQuestID(questId)) or (isCataClassic and C_QuestLog.GetQuestInfo(questId))
 			if (not questTitle) and (not questDataRequests[questId]) then -- Request only once
 				C_QuestLog.RequestLoadQuestByID(questId)
 				questDataRequests[questId] = true
 			end
 
-			local textColor = questDone and GREEN_FONT_COLOR or objectives.numFulfilled == objectives.numRequired and ORANGE_FONT_COLOR or RED_FONT_COLOR
-			local questTextLine = textColor:WrapTextInColorCode(questDone and L.Quest_QuestDone or objectives.text or L.Quest_QuestNotDone)
+			local textColor = questDone and GREEN_FONT_COLOR or (objectives and objectives.numFulfilled == objectives.numRequired) and ORANGE_FONT_COLOR or RED_FONT_COLOR
+			local questTextLine = textColor:WrapTextInColorCode(questDone and L.Quest_QuestDone or (objectives and objectives.text) or L.Quest_QuestNotDone)
 
-			Debug("- TestYourStrength - %s %s (%s - %d / %d)", questTitle or "TYStitle n/a", tostring(questDone), tostring(objectives.text), tostring(objectives.numFulfilled), tostring(objectives.numRequired))
+			if objectives then
+				Debug("- TestYourStrength - %s %s (%s - %d / %d)", questTitle or "TYStitle n/a", tostring(questDone), tostring(objectives.text), tonumber(objectives.numFulfilled), tonumber(objectives.numRequired))
+			else
+				Debug("- TestYourStrength - %s %s (!objectives)", questTitle or "TYStitle n/a", tostring(questDone))
+			end
 			_getTextLine("|T%d:0|t %s\n%s", questIcon, questTitle or "TYStitle n/a", strtrim(questTextLine))
 		end
 
