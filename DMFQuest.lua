@@ -935,7 +935,7 @@
 		C_Calendar.SetAbsMonth(currentCalendarTime.month, currentCalendarTime.year)
 
 		currentCalendarTime = _shiftTimeTables(currentCalendarTime)
-		Debug("- Date and Time: %d.%d.%d   %d:%d (%s%d)", currentCalendarTime.year, currentCalendarTime.month, currentCalendarTime.monthDay, currentCalendarTime.hour, currentCalendarTime.minute, db.TimeOffsetValue < 0 and "-" or "+", db.TimeOffsetValue)
+		Debug("- Date and Time: %d.%d.%d   %d:%d (%s%d)", currentCalendarTime.year, currentCalendarTime.month, currentCalendarTime.monthDay, currentCalendarTime.hour, currentCalendarTime.minute, db.TimeOffsetValue < 0 and "" or "+", db.TimeOffsetValue)
 		if (db.debug and db.isPTR) then currentCalendarTime.monthDay = ptrDebugDay end -- PTR Debug
 		local numDayEvents = C_Calendar.GetNumDayEvents(0, currentCalendarTime.monthDay)
 
