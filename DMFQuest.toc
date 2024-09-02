@@ -23,8 +23,6 @@ AceConsole-3.0/AceConsole-3.0.xml
 AceConfig-3.0/AceConfig-3.0.xml
 #@end-no-lib-strip@
 
-#@retail@
 ForceLoadTradeSkillData.lua
-#@end-retail@
 Localization.lua
 DMFQuest.lua

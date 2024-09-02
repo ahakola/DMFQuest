@@ -1330,7 +1330,7 @@
 			end
 
 			local questTitle = (isRetail and C_QuestLog.GetTitleForQuestID(questId)) or (isCataClassic and C_QuestLog.GetQuestInfo(questId))
-			if (not questTitle) and (not questDataRequests[questId]) then -- Request only once
+			if isRetail and (not questTitle) and (not questDataRequests[questId]) then -- Request only once
 				C_QuestLog.RequestLoadQuestByID(questId)
 				questDataRequests[questId] = true
 			end

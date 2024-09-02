@@ -41,6 +41,8 @@
 	https://github.com/Stanzilla/WoWUIBugs/issues/424#issuecomment-1522140660
 	My current workaround, which anyone is free to copy:
 ----------------------------------------------------------------------------]]--
+local isRetail = (WOW_PROJECT_ID == WOW_PROJECT_MAINLINE)
+if not isRetail then return end
 
 -- in case other addons copies this, make sure it never loads multiple times unless there is a
 -- newer version of it, in which case we disable it and load anyways
