@@ -586,45 +586,6 @@
 		f.ZONE_CHANGED_NEW_AREA = f.PLAYER_ENTERING_WORLD	-- Fires when the player enters a new zone.
 
 	-- Merchant
-		--[[
-		local lastShoppingTime = 0
-		local shoppingSpreeLimit = 2  -- Don't let AutoBuy fire more than once per every 2 seconds
-		do -- MERCHANT throttling
-			local throttling
-
-			local function DelayedBuyItems(...)
-				throttling = nil
-
-				if f:CheckForDMF() and (f:IsShown() or (C_QuestLog.GetLogIndexForQuestID(29506) and C_QuestLog.GetLogIndexForQuestID(29506) > 0)) then -- 29506 = A Fizzy Fusion
-					local timeDifference = GetTime() - lastShoppingTime
-					if timeDifference > shoppingSpreeLimit then
-						f:AutoBuyItems()
-					else
-						Debug(" !!! Block AutoBuy !!!", timeDifference)
-					end
-				end
-				--f:UpdateTextLines() -- This shouldn't be needed, because this gets taken care of by the bags portion
-			end
-
-			local function ThrottleBuyItems(...)
-				if db.debug then
-					Debug("MERCHANT_UPDATE")
-					return
-				end
-
-				if (not throttling) then
-					Debug("-- Merchant: Throttling Buy Items", ... and #(...))
-
-					C_Timer.After(1, DelayedBuyItems)
-					throttling = true
-				end
-			end
-
-			f.MERCHANT_UPDATE = ThrottleBuyItems
-			f.MERCHANT_FILTER_ITEM_UPDATE = ThrottleBuyItems
-		end
-		]]
-
 		local lockAutoBuy = false
 		function f:PLAYER_INTERACTION_MANAGER_FRAME_SHOW(event, interactionType) -- Show and Hide events have been streamlined into PLAYER_INTERACTION_MANAGER_FRAME_SHOW/HIDE in 10.0
 			if interactionType == Enum.PlayerInteractionType.Merchant then
@@ -632,6 +593,7 @@
 				if (not lockAutoBuy) then
 					if f:CheckForDMF() and (f:IsShown() or (C_QuestLog.GetLogIndexForQuestID(29506) and C_QuestLog.GetLogIndexForQuestID(29506) > 0)) then -- 29506 = A Fizzy Fusion
 						lockAutoBuy = true
+						Debug("++ Lock AutoBuy")
 						f:AutoBuyItems()
 					else
 						Debug(" !!! Something weird happened !!!")
@@ -647,7 +609,10 @@
 			local function DelayedUpdateItemButtons(...)
 				f:UpdateItemButtons()
 				f:UpdateTextLines()
-				lockAutoBuy = false
+				if lockAutoBuy then
+					lockAutoBuy = false
+					Debug("-- Unlock AutoBuy")
+				end
 			end
 
 			function f:BAG_UPDATE_DELAYED(event) -- Fired after all applicable BAG_UPDATE events for a specific action have been fired.
@@ -1606,9 +1571,10 @@
 			Debug("  -- Total: %d", totalCost)
 			Print("- - - - - - - - - - - - - - -")
 			Print(L.ChatMessage_AutoBuy_Total, C_CurrencyInfo.GetCoinText(totalCost, " "))
+		else -- We didn't buy anything
+			-- This will release the 'lockAutoBuy'. This should fix CF issue 10.
+			f:BAG_UPDATE_DELAYED()
 		end
-
-		--lastShoppingTime = GetTime()
 	end
 
 	-- Reset Settings
