@@ -1654,18 +1654,46 @@
 			f:UpdateItemButtons()
 			f:UpdateTextLines()
 		end,
-		["check"] = function()
+		["check"] = function(...)
 			local uiMapID = C_Map.GetBestMapForUnit("player")
 			local currentCalendarTime = C_DateAndTime.GetCurrentCalendarTime()
 			local currentCalendarTimeString = string.format("Time Now: %d.%d.%d   %d:%d", currentCalendarTime.year, currentCalendarTime.month, currentCalendarTime.monthDay, currentCalendarTime.hour, currentCalendarTime.minute)
 			local offsetCalendarTime = _shiftTimeTables(currentCalendarTime)
-			local offsetCalendarTimeString = string.format("With Offset: %d.%d.%d   %d:%d (%s)", offsetCalendarTime.year, offsetCalendarTime.month, offsetCalendarTime.monthDay, offsetCalendarTime.hour, offsetCalendarTime.minute, db.UseTimeOffset and (db.TimeOffsetValue < 0 and "-" or "+" .. db.TimeOffsetValue) or "Offset Off")
+			local offsetCalendarTimeString = string.format("With Offset: %d.%d.%d   %d:%d (%s)", offsetCalendarTime.year, offsetCalendarTime.month, offsetCalendarTime.monthDay, offsetCalendarTime.hour, offsetCalendarTime.minute, db.UseTimeOffset and ((db.TimeOffsetValue < 0 and "" or "+") .. db.TimeOffsetValue) or "Offset Off")
 			currentCalendarTime.day = currentCalendarTime.monthDay
 			local currentEpoch = time(currentCalendarTime)
-			local currentEpochString = (f.startTime > 0 and f.endTime > 0) and string.format("%s <- You are here -> %s", _epochToHumanReadable(currentEpoch - f.startTime), _epochToHumanReadable(f.endTime - currentEpoch)) or "n/a"
+			local currentEpochString = "n/a"
+			if f.startTime > 0 and f.endTime > 0 then
+				if (currentEpoch - f.startTime) < 0 then -- We are between DMFs, time to next DMF
+					currentEpochString = string.format("You are here -> %s", _epochToHumanReadable(f.startTime - currentEpoch))
+				else -- DMF is on
+					currentEpochString = string.format("%s <- You are here -> %s", _epochToHumanReadable(currentEpoch - f.startTime), _epochToHumanReadable(f.endTime - currentEpoch))
+				end
+			end
 
-			Print(">", f.addonTitle, "/", f.initDone,
-				"\n  |   ",
+			local profCount = 0
+			local profString = "Professions:"
+			for i = 1, maxProfCount do
+				local prof = ProfData[i]
+				if prof and prof.professionId and prof.skillLevel >= minimumSkillRequired then
+					profCount = profCount + 1
+
+					-- name, icon, skillLevel, maxSkillLevel, professionId
+					profString = profString .. string.format("\n  |      %d - %d (%s) %d/%d", i, prof.professionId, prof.name, prof.skillLevel, prof.maxSkillLevel)
+				end
+			end
+			if profCount == 0 then
+				profString = profString .. "\n  |      None"
+			end
+
+			Print(">", f.addonTitle, "/", f.initDone, "/", (GetBuildInfo()),
+				((...) ~= nil) and (
+					"\n  |   " ..
+						profString ..
+					"\n  |   "
+				) or (
+					"\n  |   "
+				),
 					"Zone:", f:CheckForPortalZone(), "/", tostring(uiMapID), "/", (uiMapID and subZoneAreaIDs[uiMapID]) and #subZoneAreaIDs[uiMapID] or "n/a",
 				"\n  |   ",
 					"DMF:", f:CheckForDMF(), "/", currentEpochString,
