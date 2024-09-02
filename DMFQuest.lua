@@ -1565,7 +1565,7 @@
 			Print("- - - - - - - - - - - - - - -")
 			Print(L.ChatMessage_AutoBuy_Total, C_CurrencyInfo.GetCoinText(totalCost, " "))
 		else -- We didn't buy anything
-			-- This will release the 'lockAutoBuy'. This should fix CF issue 10.
+			-- This will release the 'lockAutoBuy'. This should fix CF issue #10.
 			f:BAG_UPDATE_DELAYED()
 		end
 	end
