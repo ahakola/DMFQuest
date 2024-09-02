@@ -706,13 +706,6 @@
 		-- TitleText
 		local titleText = self:CreateFontString(nil, "OVERLAY", "GameFontNormal") -- FontSize 12
 		titleText:SetPoint("CENTER", self, "TOP", 0, -12 * scalerForClassic)
-		--[[
-		if isRetail then
-			titleText:SetPoint("CENTER", self, "TOP", 0, -12)
-		else -- Positioning is off in CataClassic?
-			titleText:SetPoint("CENTER", self, "TOP", 0, -9)
-		end
-		]]
 		titleText:SetText(self.addonTitle)
 		self.TitleText = titleText
 
