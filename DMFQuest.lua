@@ -1061,6 +1061,9 @@
 			end
 
 			return true
+		elseif uiMapID == 407 then -- Darkmoon Island, for Alchemy quest (29506 = A Fizzy Fusion) AutoBuy - API doesn't return any areaIDs for the zone, so we need to make special case for it
+			Debug("  -- Darkmoon Island")
+			return true
 		elseif
 			(db.ShowInCapitals and capitalCityAreaIDs[uiMapID]) -- ShowInCapitals is on and we are in capital city
 		then
