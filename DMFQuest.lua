@@ -26,6 +26,8 @@
 	local maxProfCount = isRetail and 5 or 6 -- First Aid removed in Patch 8.0.1 (2018-07-17)
 	local maxItemButtonCount = isRetail and 10 or 9 -- Moonfang's Pelt added in Patch 5.4.0 (2013-09-10)
 	local ptrDebugDay = isRetail and 7 or 14
+	local maxPrimarySkillGainFromQuest = isRetail and 2 or 5
+	local maxSecondarySkillGainFromQuest = isRetail and 3 or 5
 
 	-- GLOBALS: DMFQConfig, DEBUG_CHAT_FRAME
 
@@ -1219,7 +1221,13 @@
 				elseif prof.skillLevel >= minimumSkillRequired then -- Quest not done, enough skill to get the quest
 					skillLineText = string.format("%d / %d", prof.skillLevel, prof.maxSkillLevel)
 
-					if (prof.maxSkillLevel - prof.skillLevel) < 5 and prof.maxSkillLevel < currentSkillCap then -- In danger to waste skillpoints by capping
+					local maxSkillGainFromQuest = 0
+					if prof.professionId == 794 or prof.professionId == 129 or prof.professionId == 356 or prof.professionId == 185 then -- Archaeology, FirstAid, Fishing, Cooking then
+						maxSkillGainFromQuest = maxSecondarySkillGainFromQuest
+					else
+						maxSkillGainFromQuest = maxPrimarySkillGainFromQuest
+					end
+					if (prof.maxSkillLevel - prof.skillLevel) < maxSkillGainFromQuest and prof.maxSkillLevel < currentSkillCap then -- In danger to waste skillpoints by capping
 						skillLineText = ORANGE_FONT_COLOR:WrapTextInColorCode(skillLineText)
 					end
 
