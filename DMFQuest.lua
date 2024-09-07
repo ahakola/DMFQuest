@@ -587,19 +587,25 @@
 
 	-- Merchant
 		local lockAutoBuy = false
-		function f:PLAYER_INTERACTION_MANAGER_FRAME_SHOW(event, interactionType) -- Show and Hide events have been streamlined into PLAYER_INTERACTION_MANAGER_FRAME_SHOW/HIDE in 10.0
-			if interactionType == Enum.PlayerInteractionType.Merchant then
-				--f.MERCHANT_UPDATE()
-				if (not lockAutoBuy) then
-					if f:CheckForDMF() and (f:IsShown() or (C_QuestLog.GetLogIndexForQuestID(29506) and C_QuestLog.GetLogIndexForQuestID(29506) > 0)) then -- 29506 = A Fizzy Fusion
-						lockAutoBuy = true
-						Debug("++ Lock AutoBuy")
-						f:AutoBuyItems()
+		do -- AutoBuy trigger and throttling
+			local function DelayedAutoBuy(...)
+				f:AutoBuyItems()
+			end
+
+			function f:PLAYER_INTERACTION_MANAGER_FRAME_SHOW(event, interactionType) -- Show and Hide events have been streamlined into PLAYER_INTERACTION_MANAGER_FRAME_SHOW/HIDE in 10.0
+				if interactionType == Enum.PlayerInteractionType.Merchant then
+					--f.MERCHANT_UPDATE()
+					if (not lockAutoBuy) then
+						if f:CheckForDMF() and (f:IsShown() or (C_QuestLog.GetLogIndexForQuestID(29506) and C_QuestLog.GetLogIndexForQuestID(29506) > 0)) then -- 29506 = A Fizzy Fusion
+							lockAutoBuy = true
+							Debug("++ Lock AutoBuy")
+							C_Timer.After(0, DelayedAutoBuy) -- Fire on next frame
+						else
+							Debug(" !!! Something weird happened !!!", tostring(f:CheckForDMF()), tostring(f:IsShown()), tostring(C_QuestLog.GetLogIndexForQuestID(29506)))
+						end
 					else
-						Debug(" !!! Something weird happened !!!")
+						Debug(" !!! Block AutoBuy !!!")
 					end
-				else
-					Debug(" !!! Block AutoBuy !!!")
 				end
 			end
 		end
