@@ -32,9 +32,9 @@
 	-- GLOBALS: DMFQConfig, DEBUG_CHAT_FRAME
 
 	-- GLOBALS: AcceptQuest, BINDING_HEADER_DEBUG, BuyMerchantItem, C_AddOns, C_Calendar, C_Container, C_CurrencyInfo
-	-- GLOBALS: C_DateAndTime, C_Item, C_Map, C_MapExplorationInfo, C_QuestLog, C_Timer, C_TradeSkillUI, CalendarFrame
-	-- GLOBALS: ChatFrame3, ChatFrame4, CONFIRM_RESET_SETTINGS, Constants, CreateFontStringPool, CreateFrame
-	-- GLOBALS: DEFAULT_CHAT_FRAME, Enum, format, GameTooltip, GARRISON_MISSION_REWARD_HEADER, GetBuildInfo
+	-- GLOBALS: C_DateAndTime, C_Item, C_Map, C_MapExplorationInfo, C_MerchantFrame, C_QuestLog, C_Timer, C_TradeSkillUI
+	-- GLOBALS: CalendarFrame, ChatFrame3, ChatFrame4, CONFIRM_RESET_SETTINGS, Constants, CreateFontStringPool
+	-- GLOBALS: CreateFrame, DEFAULT_CHAT_FRAME, Enum, format, GameTooltip, GARRISON_MISSION_REWARD_HEADER, GetBuildInfo
 	-- GLOBALS: GetMerchantItemID, GetMerchantItemInfo, GetMerchantItemLink, GetMerchantItemMaxStack
 	-- GLOBALS: GetMerchantNumItems, GetMinimapZoneText, GetMoney, GetProfessionInfo, GetProfessions, GetQuestID
 	-- GLOBALS: GetScreenHeight, GetScreenWidth, GREEN_FONT_COLOR, HUD_EDIT_MODE_SETTING_AURA_FRAME_ICON_DIRECTION_DOWN
@@ -1531,7 +1531,15 @@
 
 								if itemLink and itemId == GetMerchantItemID(j) then -- Found item we want
 									local maxStack = GetMerchantItemMaxStack(j)
-									local itemName, _, itemPrice, itemQuantity, numAvailable = GetMerchantItemInfo(j)
+									local itemName, _, itemPrice, itemQuantity, numAvailable
+									if C_MerchantFrame and C_MerchantFrame.GetItemInfo then
+										local info = C_MerchantFrame.GetItemInfo(j)
+										if info and info.name then
+											itemName, itemPrice, itemQuantity, numAvailable = info.name, info.price, info.stackCount, info.numAvailable
+										end
+									else
+										itemName, _, itemPrice, itemQuantity, numAvailable = GetMerchantItemInfo(j)
+									end
 
 									if numAvailable ~= -1 then -- -1 == unlimited amount available
 										buyCount = math.min(buyCount, numAvailable) -- Check if there is enough for our needs, if not, we buy everything
