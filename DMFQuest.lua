@@ -35,8 +35,8 @@
 	-- GLOBALS: C_DateAndTime, C_Item, C_Map, C_MapExplorationInfo, C_MerchantFrame, C_QuestLog, C_Timer, C_TradeSkillUI
 	-- GLOBALS: CalendarFrame, ChatFrame3, ChatFrame4, CONFIRM_RESET_SETTINGS, Constants, CreateFontStringPool
 	-- GLOBALS: CreateFrame, DEFAULT_CHAT_FRAME, Enum, format, GameTooltip, GARRISON_MISSION_REWARD_HEADER, GetBuildInfo
-	-- GLOBALS: GetMerchantItemID, GetMerchantItemInfo, GetMerchantItemLink, GetMerchantItemMaxStack
-	-- GLOBALS: GetMerchantNumItems, GetMinimapZoneText, GetMoney, GetProfessionInfo, GetProfessions, GetQuestID
+	-- GLOBALS: GetMerchantItemID, GetMerchantItemInfo, GetMerchantItemLink, GetMerchantItemMaxStack GetMerchantNumItems
+	-- GLOBALS: GetMinimapZoneText, GetMoney, GetProfessionInfo, GetProfessions, GetQuestID, GetQuestLogIndexByID
 	-- GLOBALS: GetScreenHeight, GetScreenWidth, GREEN_FONT_COLOR, HUD_EDIT_MODE_SETTING_AURA_FRAME_ICON_DIRECTION_DOWN
 	-- GLOBALS: HUD_EDIT_MODE_SETTING_AURA_FRAME_ICON_DIRECTION_UP, InCombatLockdown
 	-- GLOBALS: InterfaceOptionsFrame_OpenToCategory, ipairs, Item, math, MISCELLANEOUS, next, ORANGE_FONT_COLOR, pairs
