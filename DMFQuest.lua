@@ -598,12 +598,19 @@
 				if interactionType == Enum.PlayerInteractionType.Merchant then
 					--f.MERCHANT_UPDATE()
 					if (not lockAutoBuy) then
-						if f:CheckForDMF() and (f:IsShown() or (C_QuestLog.GetLogIndexForQuestID(29506) and C_QuestLog.GetLogIndexForQuestID(29506) > 0)) then -- 29506 = A Fizzy Fusion
+						local questLogIndex
+						if isRetail then -- 29506 = A Fizzy Fusion
+							questLogIndex = C_QuestLog.GetLogIndexForQuestID(29506)
+						else
+							questLogIndex = GetQuestLogIndexByID(29506)
+						end
+
+						if f:CheckForDMF() and (f:IsShown() or (questLogIndex and questLogIndex > 0)) then
 							lockAutoBuy = true
 							Debug("++ Lock AutoBuy")
 							C_Timer.After(0, DelayedAutoBuy) -- Fire on next frame
 						else
-							Debug(" !!! Something weird happened !!!", tostring(f:CheckForDMF()), tostring(f:IsShown()), tostring(C_QuestLog.GetLogIndexForQuestID(29506)))
+							Debug(" !!! Something weird happened !!!", tostring(f:CheckForDMF()), tostring(f:IsShown()), tostring(questLogIndex))
 						end
 					else
 						Debug(" !!! Block AutoBuy !!!")
