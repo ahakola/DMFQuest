@@ -1431,30 +1431,6 @@
 							ProfData[index].maxSkillLevel = ProfData[index].maxSkillLevel + skillInfo.maxSkillLevel
 						end
 					end
-
-					-- Cache itemNames of the items needed for this professions Quest
-					if ProfessionQuestData[skillLine].questItems and next(ProfessionQuestData[skillLine].questItems) then -- This quest requires items
-						for itemId in pairs(ProfessionQuestData[skillLine].questItems) do
-							if (not cacheItemNames[itemId]) then
-								local item = Item:CreateFromItemID(itemId)
-								item:ContinueOnItemLoad(function()
-									local itemName = item:GetItemName()
-									cacheItemNames[itemId] = itemName
-									if textLinesWaitingForServerData[itemId] then
-										numTextLinesWaitingForServerData = numTextLinesWaitingForServerData - 1
-										textLinesWaitingForServerData[itemId] = nil
-										textLinesWaitingChanged = true
-									end
-									Debug("  -- Caching: %s (%d) | Waiting: %d", itemName, itemId, numTextLinesWaitingForServerData) -- Debug
-									if (textLinesWaitingChanged) and numTextLinesWaitingForServerData == 0 then
-										--f:UpdateTextLines()
-										_delayedUpdateTextLines()
-									end
-								end)
-							end
-						end
-					end
-
 				else -- Archeology returns proper info without iterating skillLineIds / Use this also for CataClassic
 					ProfData[index].skillLevel = skillLevel
 					ProfData[index].maxSkillLevel = maxSkillLevel
@@ -1462,6 +1438,30 @@
 						goodResults = goodResults + 1
 					end
 				end
+
+				-- Cache itemNames of the items needed for this professions Quest
+				if ProfessionQuestData[skillLine].questItems and next(ProfessionQuestData[skillLine].questItems) then -- This quest requires items
+					for itemId in pairs(ProfessionQuestData[skillLine].questItems) do
+						if (not cacheItemNames[itemId]) then
+							local item = Item:CreateFromItemID(itemId)
+							item:ContinueOnItemLoad(function()
+								local itemName = item:GetItemName()
+								cacheItemNames[itemId] = itemName
+								if textLinesWaitingForServerData[itemId] then
+									numTextLinesWaitingForServerData = numTextLinesWaitingForServerData - 1
+									textLinesWaitingForServerData[itemId] = nil
+									textLinesWaitingChanged = true
+								end
+								Debug("  -- Caching: %s (%d) | Waiting: %d", itemName, itemId, numTextLinesWaitingForServerData) -- Debug
+								if (textLinesWaitingChanged) and numTextLinesWaitingForServerData == 0 then
+									--f:UpdateTextLines()
+									_delayedUpdateTextLines()
+								end
+							end)
+						end
+					end
+				end
+
 				Debug("- %s (%d) %d/%d", name, skillLine, ProfData[index].skillLevel, ProfData[index].maxSkillLevel)
 			end
 		end
