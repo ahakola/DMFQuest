@@ -338,7 +338,7 @@
 					32175, -- Jeremy Feasel - Darkmoon Pet Battle!
 					36471 -- Christoph VonFeasel - A New Darkmoon Challenger!
 				},
-				QuestAvailableCount = (isRetail) and 2 or 0 -- Patch 5.0.4 (2012-08-28) / Patch 6.0.2 (2014-10-14)
+				QuestAvailableCount = isRetail and 2 or 0 -- Patch 5.0.4 (2012-08-28) / Patch 6.0.2 (2014-10-14)
 			},
 			DeathMetalKnight = {
 				Icon = 236362,
@@ -1020,10 +1020,12 @@
 				Debug("  -- ", i, "/", #subZoneAreaIDs[uiMapID], "-", subZoneAreaIDs[uiMapID][i], C_Map.GetAreaInfo(subZoneAreaIDs[uiMapID][i]))
 				local areaName = cacheAreaNames[subZoneAreaIDs[uiMapID][i]] or C_Map.GetAreaInfo(subZoneAreaIDs[uiMapID][i]) -- Check if we have cached this areaName already
 				if
-					(areaName == subZone)
-				or
+					(areaName == subZone) or
 					(
-						((isRetail and uiMapID == 7) or (isCataClassic and uiMapID == 1412))
+						(
+							(isRetail and uiMapID == 7) or
+							(isCataClassic and uiMapID == 1412)
+						)
 					and
 						info.name == subZone
 					)
@@ -1065,7 +1067,10 @@
 				end
 			end
 
-			if ((isRetail and uiMapID == 7) or (isCataClassic and uiMapID == 1412)) then -- Weird stuff happens in Mulgore
+			if (
+				(isRetail and uiMapID == 7) or
+				(isCataClassic and uiMapID == 1412)
+			) then -- Weird stuff happens in Mulgore
 				return _isPortalInRange(-1472, 196, UnitPosition("player"))
 			end
 
