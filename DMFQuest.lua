@@ -174,7 +174,7 @@
 			[isRetail and 110 or 1954] = true, -- Silvermoon City (BC)
 			-- Neutral (thanks to b-morgan for testing these!)
 			[isRetail and 111 or 1955] = true, -- Shattrath City (BC)
-			[125] = true -- Dalaran (WotLK)
+			[125] = true, -- Dalaran (WotLK)
 			[126] = true -- Dalaran (The Underbelly) (WotLK)
 		}
 		local subZoneAreaIDs = { -- uiMapIDs and their matching subZone areaIDs
