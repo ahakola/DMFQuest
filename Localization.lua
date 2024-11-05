@@ -6,6 +6,8 @@ local ADDON_NAME, ns = ...
 local L = {}
 ns.L = L
 
+-- GLOBALS: GetLocale
+
 -- THIS FILE IS PARTIALLY AUTOMATICALLY GENERATED. TO HELP TRANSLATE, SEE:
 -- https://legacy.curseforge.com/wow/addons/dmfquest/localization
 -- PM me in Curseforge after you have done your translations!
