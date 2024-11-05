@@ -53,7 +53,7 @@ Most of the item and profession names should come automaticly from your client, 
 
 Language | Translator(s)
 -------- | -------------
-German | Lingkan, Bullseiify, Mistrahw
+German | Bullseiify, Lingkan, Mistrahw
 French | Mad_Ti
 Korean | netaras
 Russian | the_notorious_thug
