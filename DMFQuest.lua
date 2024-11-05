@@ -1294,7 +1294,7 @@
 			else -- No profession
 				Debug("- %d - !!! No profession !!!", i)
 				if (not db.HideLow) then
-					_getTextLine("%s\n\n", RED_FONT_COLOR:WrapTextInColorCode(L.Profession_NoProfessions))
+					_getTextLine("%s\n\n", RED_FONT_COLOR:WrapTextInColorCode(L.Profession_NoProfession))
 				end
 			end
 		end
