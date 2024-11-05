@@ -43,20 +43,31 @@ If you run into a bug, please report it with via:
 * Open an issue at Github https://github.com/ahakola/DMFQuest/issues
 
 ### Localization
-Most of the item and profession names should come automaticly from your client, but there are few phrases in the Frame and Config that needs to be translated. If you want to help translate this addon, do it at https://legacy.curseforge.com/wow/addons/dmfquest/localization and PM at Curseforge after you have done so.
+Most of the item and profession names should come automaticly from your client, but there are few phrases in the Frame and Config that needs to be translated. If you want to help translate this addon, do it at https://legacy.curseforge.com/wow/addons/dmfquest/localization and PM at Curseforge or open a issue ticket at Github after you have done so.
 
----
 
-Translators for 2.0:
+#### Translators
+
+##### 3.0:
 
 Language | Translator(s)
 -------- | -------------
-German | Mistrahw, pas06
+German | Lingkan, Bullseiify, Mistrahw
 French | Mad_Ti
 Korean | netaras
 Russian | the_notorious_thug
 Traditional Chinese | sopgri
 
----
+##### 2.0:
+
+Language | Translator(s)
+-------- | -------------
+German | Mistrahw, pas06, 
+French | Mad_Ti
+Korean | netaras
+Russian | the_notorious_thug
+Traditional Chinese | sopgri
+
+##### 1.0:
 
 Thanks to **Mistrahw** for providing the German translation (only languange that had translations) for the old 1.x.x-versions.
