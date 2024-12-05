@@ -2,7 +2,7 @@
 
 # DMF Quest
 
-**New completely rewritten version 3.0 out now!**
+**New completely rewritten version 3.0 out now! Please help update the translations!**
 
 ## About the Addon
 ### Ever forgot to buy materials for your Darkmoon Faire crafting quests?
