@@ -31,19 +31,22 @@
 
 	-- GLOBALS: DMFQConfig, DEBUG_CHAT_FRAME
 
-	-- GLOBALS: AcceptQuest, BINDING_HEADER_DEBUG, BuyMerchantItem, C_AddOns, C_Calendar, C_Container, C_CurrencyInfo
-	-- GLOBALS: C_DateAndTime, C_Item, C_Map, C_MapExplorationInfo, C_MerchantFrame, C_QuestLog, C_Timer, C_TradeSkillUI
-	-- GLOBALS: CalendarFrame, ChatFrame3, ChatFrame4, CONFIRM_RESET_SETTINGS, Constants, CreateFontStringPool
-	-- GLOBALS: CreateFrame, DEFAULT_CHAT_FRAME, Enum, format, GameTooltip, GARRISON_MISSION_REWARD_HEADER, GetBuildInfo
-	-- GLOBALS: GetMerchantItemID, GetMerchantItemInfo, GetMerchantItemLink, GetMerchantItemMaxStack GetMerchantNumItems
-	-- GLOBALS: GetMinimapZoneText, GetMoney, GetProfessionInfo, GetProfessions, GetQuestID, GetQuestLogIndexByID
-	-- GLOBALS: GetScreenHeight, GetScreenWidth, GREEN_FONT_COLOR, HUD_EDIT_MODE_SETTING_AURA_FRAME_ICON_DIRECTION_DOWN
+	-- GLOBALS: AcceptQuest, ACTION_SPELL_AURA_APPLIED_BUFF, BINDING_HEADER_DEBUG, BuyMerchantItem, C_AddOns, C_Calendar
+	-- GLOBALS: C_Container, C_CurrencyInfo, C_DateAndTime, C_Item, C_Map, C_MapExplorationInfo, C_MerchantFrame
+	-- GLOBALS: C_QuestLog, C_Spell, C_Timer, C_TradeSkillUI, C_UnitAuras, CalendarFrame, ChatFrame3, ChatFrame4
+	-- GLOBALS: CONFIRM_RESET_SETTINGS, Constants, CreateFontStringPool, CreateFrame, DEFAULT_CHAT_FRAME, Enum, format
+	-- GLOBALS: GameTooltip, GARRISON_MISSION_REWARD_HEADER, GetBuildInfo, GetMerchantItemID, GetMerchantItemInfo
+	-- GLOBALS: GetMerchantItemLink, GetMerchantItemMaxStack, GetMerchantNumItems, GetMinimapZoneText, GetMoney
+	-- GLOBALS: GetProfessionInfo, GetProfessions, GetQuestID, GetQuestLogIndexByID, GetScreenHeight, GetScreenWidth
+	-- GLOBALS: GetTime, GREEN_FONT_COLOR, HUD_EDIT_MODE_SETTING_AURA_FRAME_ICON_DIRECTION_DOWN
 	-- GLOBALS: HUD_EDIT_MODE_SETTING_AURA_FRAME_ICON_DIRECTION_UP, InCombatLockdown
 	-- GLOBALS: InterfaceOptionsFrame_OpenToCategory, ipairs, Item, math, MISCELLANEOUS, next, ORANGE_FONT_COLOR, pairs
-	-- GLOBALS: PlaySound, PROFESSION_RANKS, RED_FONT_COLOR, RESET_ALL_BUTTON_TEXT, RESET_TO_DEFAULT, Settings
-	-- GLOBALS: SHOW_PET_BATTLES_ON_MAP_TEXT, SlashCmdList, SOUNDKIT, string, strjoin, strsplit, strtrim, time
-	-- GLOBALS: TIMEMANAGER_TOOLTIP_REALMTIME, tonumber, tostring, tostringall, type, UIParent, UnitPosition, unpack
-	-- GLOBALS: wipe, WOW_PROJECT_CATACLYSM_CLASSIC, WOW_PROJECT_ID, WOW_PROJECT_ID, WOW_PROJECT_MAINLINE
+	-- GLOBALS: PlaySound, PROFESSION_RANKS, PROFESSIONS_ARCHAEOLOGY, PROFESSIONS_COOKING, PROFESSIONS_FIRST_AID
+	-- GLOBALS: PROFESSIONS_FIRST_PROFESSION, PROFESSIONS_FISHING, PROFESSIONS_SECOND_PROFESSION, RED_FONT_COLOR
+	-- GLOBALS: RESET_ALL_BUTTON_TEXT, RESET_TO_DEFAULT, Settings, SHOW_PET_BATTLES_ON_MAP_TEXT, SlashCmdList, SOUNDKIT
+	-- GLOBALS: string, strjoin, strsplit, strtrim, time, TIMEMANAGER_TOOLTIP_REALMTIME, tonumber, tostring, tostringall
+	-- GLOBALS: type, UIParent, UnitPosition, unpack, wipe, WOW_PROJECT_CATACLYSM_CLASSIC, WOW_PROJECT_ID
+	-- GLOBALS: WOW_PROJECT_ID, WOW_PROJECT_MAINLINE
 
 
 --[[----------------------------------------------------------------------------
@@ -333,6 +336,19 @@
 				[356] = { -- Fishing
 					2592, 2591, 2590, 2589, 2588, 2587, 2586, 2585, 2754, 2826, 2876
 				}
+		}
+		local MissingProfessionsTable = { -- prof1, prof2, archaeology, fishing, cooking, firstAid
+			-- Primary Professions
+				PROFESSIONS_FIRST_PROFESSION, -- "First Profession"
+				PROFESSIONS_SECOND_PROFESSION, -- "Second Profession"
+			-- Archeology
+				PROFESSIONS_ARCHAEOLOGY, -- "Archaeology"
+			-- Fishing
+				PROFESSIONS_FISHING, -- "Fishing"
+			-- Cooking
+				PROFESSIONS_COOKING, -- "Cooking"
+			-- First Aid
+				PROFESSIONS_FIRST_AID -- "First Aid"
 		}
 
 	-- Additional Quests and Activities
@@ -1339,9 +1355,10 @@
 					_getTextLine("|T%d:0|t %s - %s\n%s", prof.icon, prof.name, skillLineText, strtrim(questItemText))
 				end
 			else -- No profession
-				Debug("- %d - !!! No profession !!!", i)
+				Debug("- %d - !!! No profession !!! (%s)", i, MissingProfessionsTable[i])
 				if (not db.HideLow) then
-					_getTextLine("%s\n\n", RED_FONT_COLOR:WrapTextInColorCode(L.Profession_NoProfession))
+					--_getTextLine("%s\n\n", RED_FONT_COLOR:WrapTextInColorCode(L.Profession_NoProfession))
+					_getTextLine("%s\n\n", RED_FONT_COLOR:WrapTextInColorCode(string.format(L.Profession_MissingProfession, MissingProfessionsTable[i])))
 				end
 			end
 		end
