@@ -56,7 +56,7 @@ Language | Translator(s)
 German | Bullseiify, Lingkan, Mistrahw
 French | Mad_Ti
 Korean | netaras
-Russian | the_notorious_thug
+Russian | the_notorious_thug, ZamestoTV
 Traditional Chinese | sopgri
 
 #### 2.0:
