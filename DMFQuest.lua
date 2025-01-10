@@ -79,6 +79,7 @@
 		DeathMetalKnight = true,
 		TestYourStrength = true,
 		FadedTreasureMap = true,
+		XPRepBuff = false,
 		ShowItemRewards = true,
 		-- Time Offset
 		UseTimeOffset = false,
@@ -359,8 +360,46 @@
 				QuestId = 38934, -- Silas' Secret Stash
 				StartItemId = 126930, -- Faded Treasure Map
 				QuestAvailable = (isRetail) -- Patch 6.2.0 (2015-06-23)
+			},
+			XPRepBuff = {
+				Icon = 237554,
+				SpellId = 46668, -- WHEE!
+				StartItemId = 81055, -- Darkmoon Ride Ticket
+				StartItemIcon = 134481,
+				ActivityAvailable = true -- Patch 4.3.0 (2011-11-29)
 			}
 		}
+
+		-- Gossips on Darkmoon Island
+		--[[
+		npcName					gossipOptionID	QuestId	Quest
+		------------------------------------------------------------------------
+		Maxima Blastenheimer	28702			29436	The Humanoid Cannonball
+		Ziggie Sparks			43061			36481	Firebird's Challenge
+		Jessica Rogers			40225			29455	Target: Turtle
+		Mola					40564			29463	It's Hammer Time
+		Rinling					31203			29438	He Shoots, He Scores!
+		Finlay Coolshot			39246			29434	Tonk Commander
+		Simon Sezdans			52652			64783	Dance Dance Darkmoon
+		------------------------------------------------------------------------
+
+		local function OnEvent(self, event)
+			local info = C_GossipInfo.GetOptions()
+			for i, v in pairs(info) do
+				print(i, v.icon, v.name, v.gossipOptionID)
+				if v.icon == 132060 then -- interface/gossipframe/vendorgossipicon.blp
+					print("Selecting vendor gossip option.")
+					C_GossipInfo.SelectOption(v.gossipOptionID)
+				end
+			end
+		end
+
+		local f = CreateFrame("Frame")
+		f:RegisterEvent("GOSSIP_SHOW")
+		f:SetScript("OnEvent", OnEvent)
+
+		------------------------------------------------------------------------
+		]]--
 
 
 --[[----------------------------------------------------------------------------
@@ -638,6 +677,8 @@
 				-- This fires only once or twice for all the items, BAG_UPDATE fires twice per item
 				C_Timer.After(0, DelayedUpdateItemButtons) -- Fire on next frame in hopes we don't fire this for more than once
 			end
+
+			f.BAG_UPDATE_COOLDOWN = f.BAG_UPDATE_DELAYED -- WHEE! -buff
 		end
 
 	-- Quests
@@ -1054,6 +1095,7 @@
 			/dump format("%.5f x %.5f", C_Map.GetPlayerMapPosition(C_Map.GetBestMapForUnit("player"), "player"):GetXY())
 			x, y= .36852, .35870
 		]]--
+		self:UnregisterEvent("BAG_UPDATE_COOLDOWN") -- WHEE! -buff
 		if
 			--(uiMapID == 37 or uiMapID == 88 or uiMapID == 7) -- Elwynn Forrest // Thunder Bluff // Mulgore
 			subZoneAreaIDs[uiMapID] -- Elwynn Forrest // Thunder Bluff // Mulgore
@@ -1081,6 +1123,7 @@
 			return true
 		elseif uiMapID == 407 then -- Darkmoon Island, for Alchemy quest (29506 = A Fizzy Fusion) AutoBuy - API doesn't return any areaIDs for the zone, so we need to make special case for it
 			Debug("  -- Darkmoon Island")
+			self:RegisterEvent("BAG_UPDATE_COOLDOWN") -- WHEE! -buff
 			return true
 		elseif
 			(db.ShowInCapitals and capitalCityAreaIDs[uiMapID]) -- ShowInCapitals is on and we are in capital city
@@ -1406,6 +1449,47 @@
 			_getTextLine("|T%d:0|t %s\n%s", questIcon, itemName or "FTMtitle n/a", strtrim(questTextLine))
 		end
 
+		if (additionalQuests.XPRepBuff.ActivityAvailable and db.XPRepBuff) then
+			local activityStartItemId = additionalQuests.XPRepBuff.StartItemId -- 81055 / Darkmoon Ride Ticket
+			local activityStartItemIcon = additionalQuests.XPRepBuff.StartItemIcon -- 134481
+			local activityStartItemCount = C_Item.GetItemCount(activityStartItemId)
+			local requiredAmount = 1
+
+			local itemName = ""
+			if cacheItemNames[activityStartItemId] then
+				itemName = cacheItemNames[activityStartItemId]
+			else -- itemName not yet cached from UpdateProfessions, keep waiting
+				if (not textLinesWaitingForServerData[activityStartItemId]) then
+					numTextLinesWaitingForServerData = numTextLinesWaitingForServerData + 1
+					textLinesWaitingForServerData[activityStartItemId] = 1
+					Debug("  -- Waiting for ContinueOnItemLoad: %d | Total: %d", activityStartItemId, numTextLinesWaitingForServerData) -- Debug
+				else
+					textLinesWaitingForServerData[activityStartItemId] = textLinesWaitingForServerData[activityStartItemId] + 1
+					Debug("  -- STILL Waiting for ContinueOnItemLoad: %d x %d | Total: %d", activityStartItemId, textLinesWaitingForServerData[activityStartItemId], numTextLinesWaitingForServerData) -- Debug
+				end
+			end
+
+			local activityIcon = additionalQuests.XPRepBuff.Icon -- 237554
+			local activitySpellId = additionalQuests.XPRepBuff.SpellId -- 46668 / WHEE!
+			local activityTitle = C_Spell.GetSpellName(activitySpellId) or L.QuestTitleFix_XPRepBuff -- WHEE!
+			local activityText = ""
+
+			local aura = C_UnitAuras.GetPlayerAuraBySpellID(activitySpellId)
+			-- /dump C_UnitAuras.GetPlayerAuraBySpellID(46668)
+			if aura then -- Buff active
+				activityTitle = activityTitle or aura.name
+				activityText = GREEN_FONT_COLOR:WrapTextInColorCode(string.format("\"%s\" %s", activityTitle, ACTION_SPELL_AURA_APPLIED_BUFF)) -- ACTIVE_PETS = "Active", ACTION_SPELL_AURA_APPLIED_BUFF = "applied"
+				--activityText = GREEN_FONT_COLOR:WrapTextInColorCode(string.format("%s - %d min", aura.name, math.ceil((aura.expirationTime - GetTime()) / 60)))
+			elseif activityStartItemCount < requiredAmount then -- Not enough tickets
+				activityText = RED_FONT_COLOR:WrapTextInColorCode(string.format("|T%d:0|t %d/%d %s", activityStartItemIcon, activityStartItemCount, requiredAmount, itemName))
+			else -- Enough tickets, but no buff yet
+				activityText = string.format("|T%d:0|t %d/%d %s", activityStartItemIcon, activityStartItemCount, requiredAmount, itemName)
+			end
+
+			Debug("- XPRepBuff - %s %d / %s %dm", itemName or "XPRepBufftitle n/a", activityStartItemCount, (aura and activityTitle or "no buff"), (aura and math.ceil(((aura.expirationTime) - GetTime()) / 60) or 0))
+			_getTextLine("|T%d:0|t %s\n%s", activityIcon, activityTitle or "XPRepBufftitle n/a", strtrim(activityText))
+		end
+
 		updateCount = 0
 		f.ContainerText:Hide() -- Hide this if it is still showing
 		f:Layout() -- Resize UI
@@ -1488,7 +1572,7 @@
 			additionalQuestItemsDone = true
 			Debug("-> Caching questStartingItems from additionalQuests")
 			for _, questData in pairs(additionalQuests) do
-				if questData and questData.StartItemId and questData.QuestAvailable then -- Don't check quests not yet in game!
+				if questData and questData.StartItemId and (questData.QuestAvailable or questData.ActivityAvailable) then -- Don't check quests not yet in game!
 					if (not cacheItemNames[questData.StartItemId]) then
 						Debug("!!! !!!! !!!!! ItemCaching:", questData.StartItemId)
 						local item = Item:CreateFromItemID(questData.StartItemId)
@@ -2052,8 +2136,16 @@ local DMFQConfig = {
 					width = 1.5,
 					hidden = (not additionalQuests.FadedTreasureMap.QuestAvailable)
 				},
-				ShowItemRewards = {
+				XPRepBuff = {
 					order = 50,
+					name = C_Spell.GetSpellName(additionalQuests.XPRepBuff.SpellId) or L.QuestTitleFix_XPRepBuff,
+					desc = string.format(L.Config_Activity_XPRepBuff_Desc, ORANGE_FONT_COLOR:WrapTextInColorCode(C_Spell.GetSpellName(additionalQuests.XPRepBuff.SpellId) or L.QuestTitleFix_XPRepBuff)),
+					type = "toggle",
+					width = 1.5,
+					hidden = (not additionalQuests.XPRepBuff.ActivityAvailable)
+				},
+				ShowItemRewards = {
+					order = 60,
 					name = L.Config_Activity_ShowItemRewards,
 					desc = L.Config_Activity_ShowItemRewards_Desc,
 					type = "toggle",

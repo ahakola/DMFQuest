@@ -26,6 +26,7 @@ L.Config_Activity_PetBattle_Desc = "Show Pet Battle Quests in DMFQuest Frame."
 L.Config_Activity_ShowItemRewards = "Turn-in item rewards"
 L.Config_Activity_ShowItemRewards_Desc = "Show rewards for turn-in-item in item-tooltips in DMFQuest Frame."
 L.Config_Activity_TestYourStrength_Desc = "Show %s -quest for this months Darkmoon Faire in DMFQuest Frame."
+L.Config_Activity_XPRepBuff_Desc = "Show status of %s -buff in DMFQuest Frame"
 L.Config_ExtraFeatures_AutoBuy = "AutoBuy"
 L.Config_ExtraFeatures_AutoBuy_Desc = "AutoBuy buys quest items automatically from vendors while Darkmoon Faire is available and DMFQuest Frame is visible."
 L.Config_ExtraFeatures_HideLow = "Hide low skills"
@@ -70,6 +71,7 @@ L.QuestTitleFix_DeathMetalKnight = "Death Metal Knight" -- questId 47767
 -- These are just something to fallback
 L.QuestTitleFix_FadedTreasureMap = "Faded Treasure Map" -- itemId 126930
 L.QuestTitleFix_TestYourStrength = "Test Your Strength" -- questId 29433
+L.QuestTitleFix_XPRepBuff = "WHEE!" -- spellId 46668
 
 
 local CURRENT_LOCALE = GetLocale()
