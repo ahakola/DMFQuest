@@ -382,7 +382,7 @@
 				SpellId = 46668, -- WHEE!
 				StartItemId = 81055, -- Darkmoon Ride Ticket
 				StartItemIcon = 134481,
-				ActivityAvailable = (isRetail) -- WHEE! Patch 4.3.0 (2011-11-29) / Darkmoon Ride Ticket  Patch 5.1.0 (2012-11-27)
+				ActivityAvailable = (isRetail) -- WHEE! - Patch 4.3.0 (2011-11-29) / Darkmoon Ride Ticket - Patch 5.1.0 (2012-11-27)
 			}
 		}
 

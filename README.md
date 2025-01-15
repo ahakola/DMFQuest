@@ -57,6 +57,7 @@ German | Bullseiify, Lingkan, Mistrahw
 French | Mad_Ti
 Korean | netaras
 Russian | the_notorious_thug, ZamestoTV
+Simplified Chinese | mt25cyb
 Traditional Chinese | sopgri
 
 #### 2.0:
