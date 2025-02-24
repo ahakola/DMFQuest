@@ -1140,7 +1140,13 @@
 		elseif uiMapID == 407 then -- Darkmoon Island, for Alchemy quest (29506 = A Fizzy Fusion) AutoBuy - API doesn't return any areaIDs for the zone, so we need to make special case for it
 			Debug("  -- Darkmoon Island")
 			self:RegisterEvent("BAG_UPDATE_COOLDOWN") -- WHEE! -buff
-			return true
+				self:RegisterEvent("BAG_UPDATE_COOLDOWN") -- WHEE! -buff
+			if
+				(ProfData[1] and ProfData[1].professionId == 171) or (ProfData[2] and ProfData[2].professionId == 171) -- Alchemy as Primary or Secondary Profession
+			then
+				Debug("   -- Alchemy detected")
+				return true
+			end
 		elseif
 			(db.ShowInCapitals and capitalCityAreaIDs[uiMapID]) -- ShowInCapitals is on and we are in capital city
 		then
