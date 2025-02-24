@@ -32,21 +32,21 @@
 	-- GLOBALS: DMFQConfig, DEBUG_CHAT_FRAME
 
 	-- GLOBALS: AcceptQuest, ACTION_SPELL_AURA_APPLIED_BUFF, BINDING_HEADER_DEBUG, BuyMerchantItem, C_AddOns, C_Calendar
-	-- GLOBALS: C_Container, C_CurrencyInfo, C_DateAndTime, C_Item, C_Map, C_MapExplorationInfo, C_MerchantFrame
-	-- GLOBALS: C_QuestLog, C_Spell, C_Timer, C_TradeSkillUI, C_UnitAuras, CalendarFrame, ChatFrame3, ChatFrame4
-	-- GLOBALS: CONFIRM_RESET_SETTINGS, Constants, CreateFontStringPool, CreateFrame, DEFAULT_CHAT_FRAME, Enum, format
-	-- GLOBALS: GameTooltip, GARRISON_MISSION_REWARD_HEADER, GetBuildInfo, GetMerchantItemID, GetMerchantItemInfo
-	-- GLOBALS: GetMerchantItemLink, GetMerchantItemMaxStack, GetMerchantNumItems, GetMinimapZoneText, GetMoney
-	-- GLOBALS: GetProfessionInfo, GetProfessions, GetQuestID, GetQuestLogIndexByID, GetScreenHeight, GetScreenWidth
-	-- GLOBALS: GetTime, GREEN_FONT_COLOR, HUD_EDIT_MODE_SETTING_AURA_FRAME_ICON_DIRECTION_DOWN
-	-- GLOBALS: HUD_EDIT_MODE_SETTING_AURA_FRAME_ICON_DIRECTION_UP, InCombatLockdown
-	-- GLOBALS: InterfaceOptionsFrame_OpenToCategory, ipairs, Item, math, MISCELLANEOUS, next, ORANGE_FONT_COLOR, pairs
-	-- GLOBALS: PlaySound, PROFESSION_RANKS, PROFESSIONS_ARCHAEOLOGY, PROFESSIONS_COOKING, PROFESSIONS_FIRST_AID
-	-- GLOBALS: PROFESSIONS_FIRST_PROFESSION, PROFESSIONS_FISHING, PROFESSIONS_SECOND_PROFESSION, RED_FONT_COLOR
-	-- GLOBALS: RESET_ALL_BUTTON_TEXT, RESET_TO_DEFAULT, Settings, SHOW_PET_BATTLES_ON_MAP_TEXT, SlashCmdList, SOUNDKIT
-	-- GLOBALS: string, strjoin, strsplit, strtrim, time, TIMEMANAGER_TOOLTIP_REALMTIME, tonumber, tostring, tostringall
-	-- GLOBALS: type, UIParent, UnitPosition, unpack, wipe, WOW_PROJECT_CATACLYSM_CLASSIC, WOW_PROJECT_ID
-	-- GLOBALS: WOW_PROJECT_ID, WOW_PROJECT_MAINLINE
+	-- GLOBALS: C_Container, C_CurrencyInfo, C_DateAndTime, C_GossipInfo, C_Item, C_Map, C_MapExplorationInfo,
+	-- GLOBALS: C_MerchantFrame C_QuestLog, C_Spell, C_Timer, C_TradeSkillUI, C_UnitAuras, CalendarFrame, ChatFrame3
+	-- GLOBALS: ChatFrame4, CONFIRM_RESET_SETTINGS, Constants, CreateFontStringPool, CreateFrame, DEFAULT_CHAT_FRAME
+	-- GLOBALS: Enum, format, GameTooltip, GARRISON_MISSION_REWARD_HEADER, GetBuildInfo, GetMerchantItemID
+	-- GLOBALS: GetMerchantItemInfo, GetMerchantItemLink, GetMerchantItemMaxStack, GetMerchantNumItems
+	-- GLOBALS: GetMinimapZoneText, GetMoney, GetProfessionInfo, GetProfessions, GetQuestID, GetQuestLogIndexByID
+	-- GLOBALS: GetScreenHeight, GetScreenWidth, GetTime, GREEN_FONT_COLOR
+	-- GLOBALS: HUD_EDIT_MODE_SETTING_AURA_FRAME_ICON_DIRECTION_DOWN, HUD_EDIT_MODE_SETTING_AURA_FRAME_ICON_DIRECTION_UP
+	-- GLOBALS: InCombatLockdown, InterfaceOptionsFrame_OpenToCategory, ipairs, Item, math, MISCELLANEOUS, next
+	-- GLOBALS: ORANGE_FONT_COLOR, pairs, PlaySound, PROFESSION_RANKS, PROFESSIONS_ARCHAEOLOGY, PROFESSIONS_COOKING
+	-- GLOBALS: PROFESSIONS_FIRST_AID, PROFESSIONS_FIRST_PROFESSION, PROFESSIONS_FISHING, PROFESSIONS_SECOND_PROFESSION
+	-- GLOBALS: RED_FONT_COLOR, RESET_ALL_BUTTON_TEXT, RESET_TO_DEFAULT, Settings, SHOW_PET_BATTLES_ON_MAP_TEXT
+	-- GLOBALS: SlashCmdList, SOUNDKIT, string, strjoin, strsplit, strtrim, time, TIMEMANAGER_TOOLTIP_REALMTIME
+	-- GLOBALS: tonumber, tostring, tostringall, type, UIParent, UnitPosition, unpack, wipe
+	-- GLOBALS: WOW_PROJECT_CATACLYSM_CLASSIC, WOW_PROJECT_ID, WOW_PROJECT_ID, WOW_PROJECT_MAINLINE
 
 
 --[[----------------------------------------------------------------------------
@@ -77,6 +77,7 @@
 		HideLow = false,
 		HideMax = false,
 		ShowInCapitals = false,
+		GossipQuests = false,
 		-- Quests
 		PetBattle = true,
 		DeathMetalKnight = true,
@@ -386,7 +387,8 @@
 			}
 		}
 
-		-- Gossips on Darkmoon Island
+	-- Gossips for minigames on Darkmoon Island
+		-- Patch 4.3.0 (2011-11-29)
 		--[[
 		npcName					gossipOptionID	QuestId	Quest
 		------------------------------------------------------------------------
@@ -398,24 +400,17 @@
 		Finlay Coolshot			39246			29434	Tonk Commander
 		Simon Sezdans			52652			64783	Dance Dance Darkmoon
 		------------------------------------------------------------------------
-
-		local function OnEvent(self, event)
-			local info = C_GossipInfo.GetOptions()
-			for i, v in pairs(info) do
-				print(i, v.icon, v.name, v.gossipOptionID)
-				if v.icon == 132060 then -- interface/gossipframe/vendorgossipicon.blp
-					print("Selecting vendor gossip option.")
-					C_GossipInfo.SelectOption(v.gossipOptionID)
-				end
-			end
-		end
-
-		local f = CreateFrame("Frame")
-		f:RegisterEvent("GOSSIP_SHOW")
-		f:SetScript("OnEvent", OnEvent)
-
-		------------------------------------------------------------------------
 		]]--
+		local gossipQuestStartItemId = 71083 -- Darkmoon Game Token
+		local gossipQuestIds = {
+			[28702] = 29436, -- Maxima Blastenheimer / The Humanoid Cannonball
+			[43061] = 36481, -- Ziggie Sparks / Firebird's Challenge
+			[40225] = 29455, -- Jessica Rogers / Target: Turtle
+			[40564]	= 29463, -- Mola / It's Hammer Time
+			[31203] = 29438, -- Rinling / He Shoots, He Scores!
+			[39246] = 29434, -- Finlay Coolshot / Tonk Commander
+			[52652] = 64783 -- Simon Sezdans / Dance Dance Darkmoon
+		}
 
 
 --[[----------------------------------------------------------------------------
@@ -729,6 +724,29 @@
 			if questDataRequests[questID] then --and success then -- At least on PTR success always seems to return false
 				questDataRequests[questID] = nil
 				self:UpdateTextLines()
+			end
+		end
+
+		function f:GOSSIP_SHOW(uiTextureKit) -- Gossip Quests
+			local info = C_GossipInfo.GetOptions()
+			for i, v in pairs(info) do
+				if v.icon == 132060 then -- interface/gossipframe/vendorgossipicon.blp
+					local questId = gossipQuestIds[v.gossipOptionID]
+					if questId then
+						local isOnQuest = C_QuestLog.IsOnQuest(questId)
+						local isComplete = C_QuestLog.IsComplete(questId)
+						local itemCount = C_Item.GetItemCount(gossipQuestStartItemId) -- 71083 / Darkmoon Game Token
+
+						Debug("- Found Gossip!:", v.gossipOptionID or 0, v.name or "n/a", questId, isOnQuest, isComplete, itemCount)
+						if
+							(isOnQuest) and -- Player is on the related quest
+							(not isComplete) and -- Quest isn't marked as completed in QuestLog
+							(itemCount > 0) -- Player has Game Token(s)
+						then
+							C_GossipInfo.SelectOption(v.gossipOptionID)
+						end
+					end
+				end
 			end
 		end
 
@@ -1112,6 +1130,7 @@
 			x, y= .36852, .35870
 		]]--
 		self:UnregisterEvent("BAG_UPDATE_COOLDOWN") -- WHEE! -buff
+		self:UnregisterEvent("GOSSIP_SHOW") -- Gossip Quests
 		if
 			--(uiMapID == 37 or uiMapID == 88 or uiMapID == 7) -- Elwynn Forrest // Thunder Bluff // Mulgore
 			subZoneAreaIDs[uiMapID] -- Elwynn Forrest // Thunder Bluff // Mulgore
@@ -1138,9 +1157,14 @@
 
 			return true
 		elseif uiMapID == 407 then -- Darkmoon Island, for Alchemy quest (29506 = A Fizzy Fusion) AutoBuy - API doesn't return any areaIDs for the zone, so we need to make special case for it
-			Debug("  -- Darkmoon Island")
-			self:RegisterEvent("BAG_UPDATE_COOLDOWN") -- WHEE! -buff
+			Debug("  -- Darkmoon Island", db.XPRepBuff, db.GossipQuests)
+			if db.XPRepBuff then
 				self:RegisterEvent("BAG_UPDATE_COOLDOWN") -- WHEE! -buff
+			end
+			if db.GossipQuests then
+				self:RegisterEvent("GOSSIP_SHOW") -- Gossip Quests
+			end
+
 			if
 				(ProfData[1] and ProfData[1].professionId == 171) or (ProfData[2] and ProfData[2].professionId == 171) -- Alchemy as Primary or Secondary Profession
 			then
@@ -1943,17 +1967,19 @@
 		YPos = 275,
 		FrameLock = false,
 		GrowDirection = 1, -- 0 = Down, 1 = Up
-		FrameVertexColor = { 0, 1, 0 }, -- UI shade
+		FrameVertexColor = { 1, 1, 1 }, -- UI shade
 		-- Features
 		AutoBuy = true,
 		HideLow = false,
 		HideMax = false,
 		ShowInCapitals = false,
+		GossipQuests = false,
 		-- Quests
 		PetBattle = true,
 		DeathMetalKnight = true,
 		TestYourStrength = true,
 		FadedTreasureMap = true,
+		XPRepBuff = false,
 		ShowItemRewards = true,
 		-- Time Offset
 		UseTimeOffset = false,
@@ -2106,6 +2132,13 @@ local DMFQConfig = {
 					order = 40,
 					name = L.Config_ExtraFeatures_ShowInCapitals,
 					desc = L.Config_ExtraFeatures_ShowInCapitals_Desc,
+					type = "toggle",
+					width = 1.5
+				},
+				GossipQuests = {
+					order = 50,
+					name = L.Config_ExtraFeatures_GossipQuests,
+					desc = L.Config_ExtraFeatures_GossipQuests_Desc,
 					type = "toggle",
 					width = 1.5
 				}
