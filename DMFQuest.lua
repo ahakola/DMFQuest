@@ -403,13 +403,13 @@
 		]]--
 		local gossipQuestStartItemId = 71083 -- Darkmoon Game Token
 		local gossipQuestIds = {
-			[28702] = 29436, -- Maxima Blastenheimer / The Humanoid Cannonball
-			[43061] = 36481, -- Ziggie Sparks / Firebird's Challenge
-			[40225] = 29455, -- Jessica Rogers / Target: Turtle
-			[40564]	= 29463, -- Mola / It's Hammer Time
-			[31203] = 29438, -- Rinling / He Shoots, He Scores!
-			[39246] = 29434, -- Finlay Coolshot / Tonk Commander
-			[52652] = 64783 -- Simon Sezdans / Dance Dance Darkmoon
+			[isRetail and 28702 or 111575] = 29436, -- Maxima Blastenheimer / The Humanoid Cannonball
+			[43061] = 36481, -- Ziggie Sparks / Firebird's Challenge -- Patch 6.0.2 (2014-10-14)
+			[isRetail and 40225 or 113834] = 29455, -- Jessica Rogers / Target: Turtle
+			[isRetail and 40564 or 113840] = 29463, -- Mola / It's Hammer Time
+			[isRetail and 31203 or 111571] = 29438, -- Rinling / He Shoots, He Scores!
+			[isRetail and 39246 or 113843] = 29434, -- Finlay Coolshot / Tonk Commander
+			[52652] = 64783 -- Simon Sezdans / Dance Dance Darkmoon -- Patch 9.2.0 (2022-02-22)
 		}
 
 
@@ -730,11 +730,15 @@
 		function f:GOSSIP_SHOW(uiTextureKit) -- Gossip Quests
 			local info = C_GossipInfo.GetOptions()
 			for i, v in pairs(info) do
-				if v.icon == 132060 then -- interface/gossipframe/vendorgossipicon.blp
+				if isPTR then
+					Debug(">", v.name, v.icon, v.gossipOptionID)
+				end
+				if v.icon == 132060 or v.icon == 132053 then -- interface/gossipframe/vendorgossipicon.blp
+					-- 132053 in Classic, check Retail later
 					local questId = gossipQuestIds[v.gossipOptionID]
 					if questId then
 						local isOnQuest = C_QuestLog.IsOnQuest(questId)
-						local isComplete = C_QuestLog.IsComplete(questId)
+						local isComplete = isRetail and C_QuestLog.IsComplete(questId) or IsQuestComplete(questId) -- Retail and Cata Classic
 						local itemCount = C_Item.GetItemCount(gossipQuestStartItemId) -- 71083 / Darkmoon Game Token
 
 						Debug("- Found Gossip!:", v.gossipOptionID or 0, v.name or "n/a", questId, isOnQuest, isComplete, itemCount)
