@@ -1,4 +1,4 @@
-## Interface: 40401, 110007
+## Interface: 40402, 110100
 ## Author: Kelzu (Stormreaver EU)
 ## Title: |cff8d00d1DMF|rQuest
 ## Version: @project-version@
