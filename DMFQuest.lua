@@ -40,13 +40,13 @@
 	-- GLOBALS: GetMinimapZoneText, GetMoney, GetProfessionInfo, GetProfessions, GetQuestID, GetQuestLogIndexByID
 	-- GLOBALS: GetScreenHeight, GetScreenWidth, GetTime, GREEN_FONT_COLOR
 	-- GLOBALS: HUD_EDIT_MODE_SETTING_AURA_FRAME_ICON_DIRECTION_DOWN, HUD_EDIT_MODE_SETTING_AURA_FRAME_ICON_DIRECTION_UP
-	-- GLOBALS: InCombatLockdown, InterfaceOptionsFrame_OpenToCategory, ipairs, Item, math, MISCELLANEOUS, next
-	-- GLOBALS: ORANGE_FONT_COLOR, pairs, PlaySound, PROFESSION_RANKS, PROFESSIONS_ARCHAEOLOGY, PROFESSIONS_COOKING
-	-- GLOBALS: PROFESSIONS_FIRST_AID, PROFESSIONS_FIRST_PROFESSION, PROFESSIONS_FISHING, PROFESSIONS_SECOND_PROFESSION
-	-- GLOBALS: RED_FONT_COLOR, RESET_ALL_BUTTON_TEXT, RESET_TO_DEFAULT, Settings, SHOW_PET_BATTLES_ON_MAP_TEXT
-	-- GLOBALS: SlashCmdList, SOUNDKIT, string, strjoin, strsplit, strtrim, time, TIMEMANAGER_TOOLTIP_REALMTIME
-	-- GLOBALS: tonumber, tostring, tostringall, type, UIParent, UnitPosition, unpack, wipe
-	-- GLOBALS: WOW_PROJECT_CATACLYSM_CLASSIC, WOW_PROJECT_ID, WOW_PROJECT_ID, WOW_PROJECT_MAINLINE
+	-- GLOBALS: InCombatLockdown, InterfaceOptionsFrame_OpenToCategory, ipairs, IsQuestComplete Item, math
+	-- GLOBALS: MISCELLANEOUS, next, ORANGE_FONT_COLOR, pairs, PlaySound, PROFESSION_RANKS, PROFESSIONS_ARCHAEOLOGY
+	-- GLOBALS: PROFESSIONS_COOKING, PROFESSIONS_FIRST_AID, PROFESSIONS_FIRST_PROFESSION, PROFESSIONS_FISHING
+	-- GLOBALS: PROFESSIONS_SECOND_PROFESSION, RED_FONT_COLOR, RESET_ALL_BUTTON_TEXT, RESET_TO_DEFAULT, Settings
+	-- GLOBALS: SHOW_PET_BATTLES_ON_MAP_TEXT, SlashCmdList, SOUNDKIT, string, strjoin, strsplit, strtrim, time
+	-- GLOBALS: TIMEMANAGER_TOOLTIP_REALMTIME, tonumber, tostring, tostringall, type, UIParent, UnitPosition, unpack
+	-- GLOBALS: wipe, WOW_PROJECT_CATACLYSM_CLASSIC, WOW_PROJECT_ID, WOW_PROJECT_ID, WOW_PROJECT_MAINLINE
 
 
 --[[----------------------------------------------------------------------------
@@ -738,7 +738,7 @@
 					local questId = gossipQuestIds[v.gossipOptionID]
 					if questId then
 						local isOnQuest = C_QuestLog.IsOnQuest(questId)
-						local isComplete = isRetail and C_QuestLog.IsComplete(questId) or IsQuestComplete(questId) -- Retail and Cata Classic
+						local isComplete = (isRetail and C_QuestLog.IsComplete(questId)) or (isCataClassic and IsQuestComplete(questId)) or false -- Retail and Cata Classic
 						local itemCount = C_Item.GetItemCount(gossipQuestStartItemId) -- 71083 / Darkmoon Game Token
 
 						Debug("- Found Gossip!:", v.gossipOptionID or 0, v.name or "n/a", questId, isOnQuest, isComplete, itemCount)
