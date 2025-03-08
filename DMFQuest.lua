@@ -733,8 +733,8 @@
 				if db.isPTR then
 					Debug(">", v.name, v.icon, v.gossipOptionID)
 				end
-				if v.icon == 132060 or v.icon == 132053 then -- interface/gossipframe/vendorgossipicon.blp
-					-- 132053 in Classic, check Retail later
+				if v.icon == 132053 then -- interface/gossipframe/vendorgossipicon.blp
+					-- 132053 in Classic and Retail, is 132060 some old textureId for vendorgossipicon.blp?
 					local questId = gossipQuestIds[v.gossipOptionID]
 					if questId then
 						local isOnQuest = C_QuestLog.IsOnQuest(questId)
