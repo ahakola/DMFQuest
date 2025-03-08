@@ -730,7 +730,7 @@
 		function f:GOSSIP_SHOW(uiTextureKit) -- Gossip Quests
 			local info = C_GossipInfo.GetOptions()
 			for i, v in pairs(info) do
-				if isPTR then
+				if db.isPTR then
 					Debug(">", v.name, v.icon, v.gossipOptionID)
 				end
 				if v.icon == 132060 or v.icon == 132053 then -- interface/gossipframe/vendorgossipicon.blp
