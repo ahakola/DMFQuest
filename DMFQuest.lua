@@ -927,7 +927,7 @@
 
 		if timeData.hour < 0 then
 			timeData.monthDay = timeData.monthDay - 1
-			timeData.hour = timeData.monthDay + 24
+			timeData.hour = timeData.hour + 24
 		elseif timeData.hour > 23 then
 			timeData.monthDay = timeData.monthDay + 1
 			timeData.hour = timeData.hour - 24
