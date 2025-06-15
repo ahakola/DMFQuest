@@ -179,11 +179,15 @@
 			[isCataClassic and 1455 or 87] = true, -- Ironforge
 			[isCataClassic and 1457 or 89] = true, -- Darnassus
 			[isCataClassic and 1947 or 103] = true, -- The Exodar (BC)
+			[393] = true, -- Shrine of Seven Stars (MoP)
+			[394] = true, -- Shrine of Seven Stars (MoP)
 			-- Horde
 			[isCataClassic and 1454 or 85] = true, -- Orgrimmar
 			[ThunderBluffAreaId] = true, -- Thunder Bluff
 			[isCataClassic and 1458 or 90] = true, -- Undercity
 			[isCataClassic and 1954 or 110] = true, -- Silvermoon City (BC)
+			[391] = true, -- Shrine of Two Moons (MoP)
+			[392] = true, -- Shrine of Two Moons (MoP)
 			-- Neutral (thanks to b-morgan for testing these!)
 			[isCataClassic and 1955 or 111] = true, -- Shattrath City (BC)
 			[125] = true, -- Dalaran (WotLK)
