@@ -785,7 +785,7 @@
 
 	function f:CreateUI()
 		Debug("CreateUI")
-		local scalerForClassic = isRetail and 1 or 324/410 -- ~.79% in Classic
+		local scalerForClassic = isCataClassic and 324/410 or 1 -- ~.79% in Classic
 		self.fixedWidth = 324 * scalerForClassic
 		self.minimumHeight = 150
 		self.heightPadding = 72 -- (TopBorder 2px, Title 20px, TopSeparator 2px) + (TopPadding 6px, Text [Dynamic], BottomPadding 6px) + (BottomSeparator 2px, Buttons 32px, BottomBorder 2px)
@@ -838,12 +838,12 @@
 		-- CloseButton
 		local closeButton = CreateFrame("Button", nil, self, "UIPanelCloseButton")
 		closeButton:SetSize(28, 28)
-		if isRetail then
-			Debug("closeButton:SetPoint -> isRetail")
-			closeButton:SetPoint("TOPRIGHT", 2, 1)
-		else -- Positioning is off in CataClassic?
+		if isCataClassic then -- Positioning is off in CataClassic. Something to do with the scaling?
 			Debug("closeButton:SetPoint -> !isRetail")
 			closeButton:SetPoint("TOPRIGHT", 5, 5)
+		else
+			Debug("closeButton:SetPoint -> isRetail")
+			closeButton:SetPoint("TOPRIGHT", 2, 1)
 		end
 		closeButton:GetNormalTexture():SetVertexColor(
 			blendColors(
