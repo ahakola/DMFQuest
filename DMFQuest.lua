@@ -168,10 +168,10 @@
 	-- Portal Areas
 		-- For some reason areaIDs change between Retail and CataClassic while subZoneAreaIDs stay the same?
 		-- Reported by dblanch369 on GitHub, MoPClassic uses the Retail areaIDs.
+		local DarkmoonIslandAreaId = 407
 		local ElwynnForrestAreaId = (isCataClassic) and 1429 or 37
 		local MulgoreAreaId = (isCataClassic) and 1412 or 7
 		local ThunderBluffAreaId = (isCataClassic) and 1456 or 88
-		local DarkmoonIslandAreaId = 407
 		local capitalCityAreaIDs = {
 			-- https://wago.tools/db2/UiMap // https://wow.tools/dbc/?dbc=uimap
 			-- Alliance
