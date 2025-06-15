@@ -23,8 +23,10 @@
 
 	local isRetail = (WOW_PROJECT_ID == WOW_PROJECT_MAINLINE)
 	local isCataClassic = (WOW_PROJECT_ID == WOW_PROJECT_CATACLYSM_CLASSIC)
+	local isMoPClassic = (WOW_PROJECT_ID == WOW_PROJECT_MISTS_CLASSIC)
+	local isAnyClassic = (isCataClassic or isMoPClassic)
 	local maxProfCount = isRetail and 5 or 6 -- First Aid removed in Patch 8.0.1 (2018-07-17)
-	local maxItemButtonCount = isRetail and 10 or 9 -- Moonfang's Pelt added in Patch 5.4.0 (2013-09-10)
+	local maxItemButtonCount = isCataClassic and 9 or 10 -- Moonfang's Pelt added in Patch 5.4.0 (2013-09-10)
 	local ptrDebugDay = isRetail and 7 or 14
 	local maxPrimarySkillGainFromQuest = isRetail and 2 or 5
 	local maxSecondarySkillGainFromQuest = isRetail and 3 or 5
@@ -46,7 +48,7 @@
 	-- GLOBALS: PROFESSIONS_SECOND_PROFESSION, RED_FONT_COLOR, RESET_ALL_BUTTON_TEXT, RESET_TO_DEFAULT, Settings
 	-- GLOBALS: SHOW_PET_BATTLES_ON_MAP_TEXT, SlashCmdList, SOUNDKIT, string, strjoin, strsplit, strtrim, time
 	-- GLOBALS: TIMEMANAGER_TOOLTIP_REALMTIME, tonumber, tostring, tostringall, type, UIParent, UnitPosition, unpack
-	-- GLOBALS: wipe, WOW_PROJECT_CATACLYSM_CLASSIC, WOW_PROJECT_ID, WOW_PROJECT_ID, WOW_PROJECT_MAINLINE
+	-- GLOBALS: wipe, WOW_PROJECT_CATACLYSM_CLASSIC, WOW_PROJECT_ID, WOW_PROJECT_MAINLINE, WOW_PROJECT_MISTS_CLASSIC
 
 
 --[[----------------------------------------------------------------------------
@@ -360,7 +362,7 @@
 					32175, -- Jeremy Feasel - Darkmoon Pet Battle!
 					36471 -- Christoph VonFeasel - A New Darkmoon Challenger!
 				},
-				QuestAvailableCount = isRetail and 2 or 0 -- Patch 5.0.4 (2012-08-28) / Patch 6.0.2 (2014-10-14)
+				QuestAvailableCount = isCataClassic and 0 or (isMoPClassic and 1 or 2) -- Patch 5.0.4 (2012-08-28) / Patch 6.0.2 (2014-10-14)
 			},
 			DeathMetalKnight = {
 				Icon = 236362,
@@ -383,7 +385,7 @@
 				SpellId = 46668, -- WHEE!
 				StartItemId = 81055, -- Darkmoon Ride Ticket
 				StartItemIcon = 134481,
-				ActivityAvailable = (isRetail) -- WHEE! - Patch 4.3.0 (2011-11-29) / Darkmoon Ride Ticket - Patch 5.1.0 (2012-11-27)
+				ActivityAvailable = not (isCataClassic) -- WHEE! - Patch 4.3.0 (2011-11-29) / Darkmoon Ride Ticket - Patch 5.1.0 (2012-11-27)
 			}
 		}
 
@@ -738,7 +740,7 @@
 					local questId = gossipQuestIds[v.gossipOptionID]
 					if questId then
 						local isOnQuest = C_QuestLog.IsOnQuest(questId)
-						local isComplete = (isRetail and C_QuestLog.IsComplete(questId)) or (isCataClassic and IsQuestComplete(questId)) or false -- Retail and Cata Classic
+						local isComplete = (isRetail and C_QuestLog.IsComplete(questId)) or (isAnyClassic and IsQuestComplete(questId)) or false -- Retail and Cata/MoP Classic
 						local itemCount = C_Item.GetItemCount(gossipQuestStartItemId) -- 71083 / Darkmoon Game Token
 
 						Debug("- Found Gossip!:", v.gossipOptionID or 0, v.name or "n/a", questId, isOnQuest, isComplete, itemCount)
@@ -1453,7 +1455,7 @@
 				objectives = objectives[1]
 			end
 
-			local questTitle = (isRetail and C_QuestLog.GetTitleForQuestID(questId)) or (isCataClassic and C_QuestLog.GetQuestInfo(questId))
+			local questTitle = (isRetail and C_QuestLog.GetTitleForQuestID(questId)) or (isAnyClassic and C_QuestLog.GetQuestInfo(questId))
 			if isRetail and (not questTitle) and (not questDataRequests[questId]) then -- Request only once
 				C_QuestLog.RequestLoadQuestByID(questId)
 				questDataRequests[questId] = true
@@ -2172,13 +2174,13 @@ local DMFQConfig = {
 					name =
 						(isRetail and C_QuestLog.GetTitleForQuestID(additionalQuests.TestYourStrength.QuestId))
 						or
-						(isCataClassic and C_QuestLog.GetQuestInfo(additionalQuests.TestYourStrength.QuestId))
+						(isAnyClassic and C_QuestLog.GetQuestInfo(additionalQuests.TestYourStrength.QuestId))
 						or
 						L.QuestTitleFix_TestYourStrength,
 					desc = string.format(L.Config_Activity_TestYourStrength_Desc, ORANGE_FONT_COLOR:WrapTextInColorCode(
 						(isRetail and C_QuestLog.GetTitleForQuestID(additionalQuests.TestYourStrength.QuestId))
 						or
-						(isCataClassic and C_QuestLog.GetQuestInfo(additionalQuests.TestYourStrength.QuestId))
+						(isAnyClassic and C_QuestLog.GetQuestInfo(additionalQuests.TestYourStrength.QuestId))
 						or
 						L.QuestTitleFix_TestYourStrength)),
 					type = "toggle",
