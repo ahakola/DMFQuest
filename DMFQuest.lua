@@ -167,6 +167,9 @@
 
 	-- Portal Areas
 		-- For some reason areaIDs change between Retail and CataClassic while subZoneAreaIDs stay the same?
+		local ElwynnForrestAreaId = (isCataClassic) and 1429 or 37
+		local MulgoreAreaId = (isCataClassic) and 1412 or 7
+		local ThunderBluffAreaId = (isCataClassic) and 1456 or 88
 		local capitalCityAreaIDs = {
 			-- https://wago.tools/db2/UiMap // https://wow.tools/dbc/?dbc=uimap
 			-- Alliance
@@ -176,7 +179,7 @@
 			[isRetail and 103 or 1947] = true, -- The Exodar (BC)
 			-- Horde
 			[isRetail and 85 or 1454] = true, -- Orgrimmar
-			[isRetail and 88 or 1456] = true, -- Thunder Bluff
+			[ThunderBluffAreaId] = true, -- Thunder Bluff
 			[isRetail and 90 or 1458] = true, -- Undercity
 			[isRetail and 110 or 1954] = true, -- Silvermoon City (BC)
 			-- Neutral (thanks to b-morgan for testing these!)
@@ -196,18 +199,18 @@
 			]]--
 
 			-- Alliance
-			[isRetail and 37 or 1429] = {	-- Elwynn Forrest
+			[ElwynnForrestAreaId] = {	-- Elwynn Forrest
 				87,			-- Goldshire (Town)
 				5637		-- Lion's Pride Inn (Inn)
 			},
 			-- Horde
-			[isRetail and 7 or 1412] = {	-- Mulgore
+			[MulgoreAreaId] = {	-- Mulgore
 				-- These both return Mulgore for GetMinimapZoneText() and empty string for GetSubZoneText()
 				-- Also the changing of GetMinimapZoneText() is kind of hit or miss depending on the direction you arrive to the Portal from
 				404,		-- Bael'dun Digsite (SW from Portal)
 				1638		-- Thunder Bluff (Next to the city, but not quite in it yet)
 			},
-			[isRetail and 88 or 1456] = {	-- Thunder Bluff
+			[ThunderBluffAreaId] = {	-- Thunder Bluff
 				1638,		-- Thunder Bluff (Central Rise)
 				1639,		-- Elder Rise (Eastern Rise)
 				1640,		-- Spirit Rise (Northern Rise)
@@ -1108,7 +1111,7 @@
 					(areaName == subZone)
 				or
 					(
-						( (isRetail and uiMapID == 7) or (isCataClassic and uiMapID == 1412) )
+						uiMapID == MulgoreAreaId
 					and
 						info.name == subZone
 					)
@@ -1153,7 +1156,7 @@
 			end
 
 			if
-				(isRetail and uiMapID == 7) or (isCataClassic and uiMapID == 1412)
+				uiMapID == MulgoreAreaId
 			then -- Weird stuff happens in Mulgore
 				return _isPortalInRange(-1472, 196, UnitPosition("player"))
 			end
