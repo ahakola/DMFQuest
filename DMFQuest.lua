@@ -171,6 +171,7 @@
 		local ElwynnForrestAreaId = (isCataClassic) and 1429 or 37
 		local MulgoreAreaId = (isCataClassic) and 1412 or 7
 		local ThunderBluffAreaId = (isCataClassic) and 1456 or 88
+		local DarkmoonIslandAreaId = 407
 		local capitalCityAreaIDs = {
 			-- https://wago.tools/db2/UiMap // https://wow.tools/dbc/?dbc=uimap
 			-- Alliance
@@ -1163,7 +1164,7 @@
 			end
 
 			return true
-		elseif uiMapID == 407 then -- Darkmoon Island, for Alchemy quest (29506 = A Fizzy Fusion) AutoBuy - API doesn't return any areaIDs for the zone, so we need to make special case for it
+		elseif uiMapID == DarkmoonIslandAreaId then -- Darkmoon Island, for Alchemy quest (29506 = A Fizzy Fusion) AutoBuy - API doesn't return any areaIDs for the zone, so we need to make special case for it
 			Debug("  -- Darkmoon Island", db.XPRepBuff, db.GossipQuests)
 			if db.XPRepBuff then
 				self:RegisterEvent("BAG_UPDATE_COOLDOWN") -- WHEE! -buff
