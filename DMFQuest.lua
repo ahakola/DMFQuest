@@ -1402,9 +1402,9 @@
 		-- Additional Quests
 		if (additionalQuests.PetBattle.QuestAvailableCount > 0) and db.PetBattle then
 			local questIcon = additionalQuests.PetBattle.Icon -- 631719
-			local questCount, questMaxCount = 0, #additionalQuests.PetBattle.QuestIdTable
+			local questCount, questMaxCount = 0, additionalQuests.PetBattle.QuestAvailableCount --#additionalQuests.PetBattle.QuestIdTable
 			--for _, questId in ipairs(additionalQuests.PetBattle.QuestIdTable) do
-			for questIndex = 1, additionalQuests.PetBattle.QuestAvailableCount do
+			for questIndex = 1, questMaxCount do
 				local questId = additionalQuests.PetBattle.QuestIdTable[questIndex]
 				-- 32175 / Jeremy Feasel - Darkmoon Pet Battle!
 				-- 36471 / Christoph VonFeasel - A New Darkmoon Challenger!
