@@ -167,23 +167,24 @@
 
 	-- Portal Areas
 		-- For some reason areaIDs change between Retail and CataClassic while subZoneAreaIDs stay the same?
+		-- Reported by dblanch369 on GitHub, MoPClassic uses the Retail areaIDs.
 		local ElwynnForrestAreaId = (isCataClassic) and 1429 or 37
 		local MulgoreAreaId = (isCataClassic) and 1412 or 7
 		local ThunderBluffAreaId = (isCataClassic) and 1456 or 88
 		local capitalCityAreaIDs = {
 			-- https://wago.tools/db2/UiMap // https://wow.tools/dbc/?dbc=uimap
 			-- Alliance
-			[isRetail and 84 or 1453] = true, -- Stormwind City
-			[isRetail and 87 or 1455] = true, -- Ironforge
-			[isRetail and 89 or 1457] = true, -- Darnassus
-			[isRetail and 103 or 1947] = true, -- The Exodar (BC)
+			[isCataClassic and 1453 or 84] = true, -- Stormwind City
+			[isCataClassic and 1455 or 87] = true, -- Ironforge
+			[isCataClassic and 1457 or 89] = true, -- Darnassus
+			[isCataClassic and 1947 or 103] = true, -- The Exodar (BC)
 			-- Horde
-			[isRetail and 85 or 1454] = true, -- Orgrimmar
+			[isCataClassic and 1454 or 85] = true, -- Orgrimmar
 			[ThunderBluffAreaId] = true, -- Thunder Bluff
-			[isRetail and 90 or 1458] = true, -- Undercity
-			[isRetail and 110 or 1954] = true, -- Silvermoon City (BC)
+			[isCataClassic and 1458 or 90] = true, -- Undercity
+			[isCataClassic and 1954 or 110] = true, -- Silvermoon City (BC)
 			-- Neutral (thanks to b-morgan for testing these!)
-			[isRetail and 111 or 1955] = true, -- Shattrath City (BC)
+			[isCataClassic and 1955 or 111] = true, -- Shattrath City (BC)
 			[125] = true, -- Dalaran (WotLK)
 			[126] = true -- Dalaran (The Underbelly) (WotLK)
 		}
