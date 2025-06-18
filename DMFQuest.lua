@@ -166,13 +166,13 @@
 		}
 
 	-- Portal Areas
-		-- For some reason areaIDs change between Retail and CataClassic while subZoneAreaIDs stay the same?
-		-- Reported by dblanch369 on GitHub, MoPClassic uses the Retail areaIDs.
-		local DarkmoonIslandAreaId = 407
-		local ElwynnForrestAreaId = (isCataClassic) and 1429 or 37
-		local MulgoreAreaId = (isCataClassic) and 1412 or 7
-		local ThunderBluffAreaId = (isCataClassic) and 1456 or 88
-		local capitalCityAreaIDs = {
+		-- For some reason uiMapIDs change between Retail and CataClassic while subZoneAreaIDs stay the same?
+		-- Reported by dblanch369 on GitHub, MoPClassic uses the Retail uiMapIDs.
+		local DarkmoonIslandUiMapID = 407
+		local ElwynnForrestUiMapID = (isCataClassic) and 1429 or 37
+		local MulgoreUiMapID = (isCataClassic) and 1412 or 7
+		local ThunderBluffUiMapID = (isCataClassic) and 1456 or 88
+		local capitalCityUiMapIDs = {
 			-- https://wago.tools/db2/UiMap // https://wow.tools/dbc/?dbc=uimap
 			-- Alliance
 			[isCataClassic and 1453 or 84] = true, -- Stormwind City
@@ -183,7 +183,7 @@
 			[394] = true, -- Shrine of Seven Stars (MoP) / Upstairs
 			-- Horde
 			[isCataClassic and 1454 or 85] = true, -- Orgrimmar
-			[ThunderBluffAreaId] = true, -- Thunder Bluff
+			[ThunderBluffUiMapID] = true, -- Thunder Bluff
 			[isCataClassic and 1458 or 90] = true, -- Undercity
 			[isCataClassic and 1954 or 110] = true, -- Silvermoon City (BC)
 			[391] = true, -- Shrine of Two Moons (MoP) / Downstairs
@@ -205,18 +205,18 @@
 			]]--
 
 			-- Alliance
-			[ElwynnForrestAreaId] = {	-- Elwynn Forrest
+			[ElwynnForrestUiMapID] = {	-- Elwynn Forrest
 				87,			-- Goldshire (Town)
 				5637		-- Lion's Pride Inn (Inn)
 			},
 			-- Horde
-			[MulgoreAreaId] = {	-- Mulgore
+			[MulgoreUiMapID] = {	-- Mulgore
 				-- These both return Mulgore for GetMinimapZoneText() and empty string for GetSubZoneText()
 				-- Also the changing of GetMinimapZoneText() is kind of hit or miss depending on the direction you arrive to the Portal from
 				404,		-- Bael'dun Digsite (SW from Portal)
 				1638		-- Thunder Bluff (Next to the city, but not quite in it yet)
 			},
-			[ThunderBluffAreaId] = {	-- Thunder Bluff
+			[ThunderBluffUiMapID] = {	-- Thunder Bluff
 				1638,		-- Thunder Bluff (Central Rise)
 				1639,		-- Elder Rise (Eastern Rise)
 				1640,		-- Spirit Rise (Northern Rise)
@@ -1117,7 +1117,7 @@
 					(areaName == subZone)
 				or
 					(
-						uiMapID == MulgoreAreaId
+						uiMapID == MulgoreUiMapID
 					and
 						info.name == subZone
 					)
@@ -1162,13 +1162,13 @@
 			end
 
 			if
-				uiMapID == MulgoreAreaId
+				uiMapID == MulgoreUiMapID
 			then -- Weird stuff happens in Mulgore
 				return _isPortalInRange(-1472, 196, UnitPosition("player"))
 			end
 
 			return true
-		elseif uiMapID == DarkmoonIslandAreaId then -- Darkmoon Island, for Alchemy quest (29506 = A Fizzy Fusion) AutoBuy - API doesn't return any areaIDs for the zone, so we need to make special case for it
+		elseif uiMapID == DarkmoonIslandUiMapID then -- Darkmoon Island, for Alchemy quest (29506 = A Fizzy Fusion) AutoBuy - API doesn't return any areaIDs for the zone, so we need to make special case for it
 			Debug("  -- Darkmoon Island", db.XPRepBuff, db.GossipQuests)
 			if db.XPRepBuff then
 				self:RegisterEvent("BAG_UPDATE_COOLDOWN") -- WHEE! -buff
@@ -1184,7 +1184,7 @@
 				return true
 			end
 		elseif
-			(db.ShowInCapitals and capitalCityAreaIDs[uiMapID]) -- ShowInCapitals is on and we are in capital city
+			(db.ShowInCapitals and capitalCityUiMapIDs[uiMapID]) -- ShowInCapitals is on and we are in capital city
 		then
 			if db.isPTR then -- PTR Debug
 				Debug("  -- Capital:", uiMapID, info.name, subZone)
