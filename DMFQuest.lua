@@ -23,8 +23,10 @@
 
 	local isRetail = (WOW_PROJECT_ID == WOW_PROJECT_MAINLINE)
 	local isCataClassic = (WOW_PROJECT_ID == WOW_PROJECT_CATACLYSM_CLASSIC)
+	local isMoPClassic = (WOW_PROJECT_ID == WOW_PROJECT_MISTS_CLASSIC)
+	local isAnyClassic = (isCataClassic or isMoPClassic)
 	local maxProfCount = isRetail and 5 or 6 -- First Aid removed in Patch 8.0.1 (2018-07-17)
-	local maxItemButtonCount = isRetail and 10 or 9 -- Moonfang's Pelt added in Patch 5.4.0 (2013-09-10)
+	local maxItemButtonCount = isCataClassic and 9 or 10 -- Moonfang's Pelt added in Patch 5.4.0 (2013-09-10)
 	local ptrDebugDay = isRetail and 7 or 14
 	local maxPrimarySkillGainFromQuest = isRetail and 2 or 5
 	local maxSecondarySkillGainFromQuest = isRetail and 3 or 5
@@ -46,7 +48,7 @@
 	-- GLOBALS: PROFESSIONS_SECOND_PROFESSION, RED_FONT_COLOR, RESET_ALL_BUTTON_TEXT, RESET_TO_DEFAULT, Settings
 	-- GLOBALS: SHOW_PET_BATTLES_ON_MAP_TEXT, SlashCmdList, SOUNDKIT, string, strjoin, strsplit, strtrim, time
 	-- GLOBALS: TIMEMANAGER_TOOLTIP_REALMTIME, tonumber, tostring, tostringall, type, UIParent, UnitPosition, unpack
-	-- GLOBALS: wipe, WOW_PROJECT_CATACLYSM_CLASSIC, WOW_PROJECT_ID, WOW_PROJECT_ID, WOW_PROJECT_MAINLINE
+	-- GLOBALS: wipe, WOW_PROJECT_CATACLYSM_CLASSIC, WOW_PROJECT_ID, WOW_PROJECT_MAINLINE, WOW_PROJECT_MISTS_CLASSIC
 
 
 --[[----------------------------------------------------------------------------
@@ -164,21 +166,30 @@
 		}
 
 	-- Portal Areas
-		-- For some reason areaIDs change between Retail and CataClassic while subZoneAreaIDs stay the same?
-		local capitalCityAreaIDs = {
+		-- For some reason uiMapIDs change between Retail and CataClassic while subZoneAreaIDs stay the same?
+		-- Reported by dblanch369 on GitHub, MoPClassic uses the Retail uiMapIDs.
+		local DarkmoonIslandUiMapID = 407
+		local ElwynnForrestUiMapID = (isCataClassic) and 1429 or 37
+		local MulgoreUiMapID = (isCataClassic) and 1412 or 7
+		local ThunderBluffUiMapID = (isCataClassic) and 1456 or 88
+		local capitalCityUiMapIDs = {
 			-- https://wago.tools/db2/UiMap // https://wow.tools/dbc/?dbc=uimap
 			-- Alliance
-			[isRetail and 84 or 1453] = true, -- Stormwind City
-			[isRetail and 87 or 1455] = true, -- Ironforge
-			[isRetail and 89 or 1457] = true, -- Darnassus
-			[isRetail and 103 or 1947] = true, -- The Exodar (BC)
+			[isCataClassic and 1453 or 84] = true, -- Stormwind City
+			[isCataClassic and 1455 or 87] = true, -- Ironforge
+			[isCataClassic and 1457 or 89] = true, -- Darnassus
+			[isCataClassic and 1947 or 103] = true, -- The Exodar (BC)
+			[393] = true, -- Shrine of Seven Stars (MoP) / Downstairs
+			[394] = true, -- Shrine of Seven Stars (MoP) / Upstairs
 			-- Horde
-			[isRetail and 85 or 1454] = true, -- Orgrimmar
-			[isRetail and 88 or 1456] = true, -- Thunder Bluff
-			[isRetail and 90 or 1458] = true, -- Undercity
-			[isRetail and 110 or 1954] = true, -- Silvermoon City (BC)
+			[isCataClassic and 1454 or 85] = true, -- Orgrimmar
+			[ThunderBluffUiMapID] = true, -- Thunder Bluff
+			[isCataClassic and 1458 or 90] = true, -- Undercity
+			[isCataClassic and 1954 or 110] = true, -- Silvermoon City (BC)
+			[391] = true, -- Shrine of Two Moons (MoP) / Downstairs
+			[392] = true, -- Shrine of Two Moons (MoP) / Upstairs
 			-- Neutral (thanks to b-morgan for testing these!)
-			[isRetail and 111 or 1955] = true, -- Shattrath City (BC)
+			[isCataClassic and 1955 or 111] = true, -- Shattrath City (BC)
 			[125] = true, -- Dalaran (WotLK)
 			[126] = true -- Dalaran (The Underbelly) (WotLK)
 		}
@@ -194,18 +205,18 @@
 			]]--
 
 			-- Alliance
-			[isRetail and 37 or 1429] = {	-- Elwynn Forrest
+			[ElwynnForrestUiMapID] = {	-- Elwynn Forrest
 				87,			-- Goldshire (Town)
 				5637		-- Lion's Pride Inn (Inn)
 			},
 			-- Horde
-			[isRetail and 7 or 1412] = {	-- Mulgore
+			[MulgoreUiMapID] = {	-- Mulgore
 				-- These both return Mulgore for GetMinimapZoneText() and empty string for GetSubZoneText()
 				-- Also the changing of GetMinimapZoneText() is kind of hit or miss depending on the direction you arrive to the Portal from
 				404,		-- Bael'dun Digsite (SW from Portal)
 				1638		-- Thunder Bluff (Next to the city, but not quite in it yet)
 			},
-			[isRetail and 88 or 1456] = {	-- Thunder Bluff
+			[ThunderBluffUiMapID] = {	-- Thunder Bluff
 				1638,		-- Thunder Bluff (Central Rise)
 				1639,		-- Elder Rise (Eastern Rise)
 				1640,		-- Spirit Rise (Northern Rise)
@@ -360,7 +371,7 @@
 					32175, -- Jeremy Feasel - Darkmoon Pet Battle!
 					36471 -- Christoph VonFeasel - A New Darkmoon Challenger!
 				},
-				QuestAvailableCount = isRetail and 2 or 0 -- Patch 5.0.4 (2012-08-28) / Patch 6.0.2 (2014-10-14)
+				QuestAvailableCount = isCataClassic and 0 or (isMoPClassic and 1 or 2) -- Patch 5.0.4 (2012-08-28) / Patch 6.0.2 (2014-10-14)
 			},
 			DeathMetalKnight = {
 				Icon = 236362,
@@ -383,7 +394,7 @@
 				SpellId = 46668, -- WHEE!
 				StartItemId = 81055, -- Darkmoon Ride Ticket
 				StartItemIcon = 134481,
-				ActivityAvailable = (isRetail) -- WHEE! - Patch 4.3.0 (2011-11-29) / Darkmoon Ride Ticket - Patch 5.1.0 (2012-11-27)
+				ActivityAvailable = not (isCataClassic) -- WHEE! - Patch 4.3.0 (2011-11-29) / Darkmoon Ride Ticket - Patch 5.1.0 (2012-11-27)
 			}
 		}
 
@@ -738,7 +749,7 @@
 					local questId = gossipQuestIds[v.gossipOptionID]
 					if questId then
 						local isOnQuest = C_QuestLog.IsOnQuest(questId)
-						local isComplete = (isRetail and C_QuestLog.IsComplete(questId)) or (isCataClassic and IsQuestComplete(questId)) or false -- Retail and Cata Classic
+						local isComplete = (isRetail and C_QuestLog.IsComplete(questId)) or (isAnyClassic and IsQuestComplete(questId)) or false -- Retail and Cata/MoP Classic
 						local itemCount = C_Item.GetItemCount(gossipQuestStartItemId) -- 71083 / Darkmoon Game Token
 
 						Debug("- Found Gossip!:", v.gossipOptionID or 0, v.name or "n/a", questId, isOnQuest, isComplete, itemCount)
@@ -779,7 +790,7 @@
 
 	function f:CreateUI()
 		Debug("CreateUI")
-		local scalerForClassic = isRetail and 1 or 324/410 -- ~.79% in Classic
+		local scalerForClassic = isCataClassic and 324/410 or 1 -- ~.79% in Classic
 		self.fixedWidth = 324 * scalerForClassic
 		self.minimumHeight = 150
 		self.heightPadding = 72 -- (TopBorder 2px, Title 20px, TopSeparator 2px) + (TopPadding 6px, Text [Dynamic], BottomPadding 6px) + (BottomSeparator 2px, Buttons 32px, BottomBorder 2px)
@@ -832,12 +843,12 @@
 		-- CloseButton
 		local closeButton = CreateFrame("Button", nil, self, "UIPanelCloseButton")
 		closeButton:SetSize(28, 28)
-		if isRetail then
-			Debug("closeButton:SetPoint -> isRetail")
-			closeButton:SetPoint("TOPRIGHT", 2, 1)
-		else -- Positioning is off in CataClassic?
+		if isCataClassic then -- Positioning is off in CataClassic. Something to do with the scaling?
 			Debug("closeButton:SetPoint -> !isRetail")
 			closeButton:SetPoint("TOPRIGHT", 5, 5)
+		else
+			Debug("closeButton:SetPoint -> isRetail")
+			closeButton:SetPoint("TOPRIGHT", 2, 1)
 		end
 		closeButton:GetNormalTexture():SetVertexColor(
 			blendColors(
@@ -1106,7 +1117,7 @@
 					(areaName == subZone)
 				or
 					(
-						( (isRetail and uiMapID == 7) or (isCataClassic and uiMapID == 1412) )
+						uiMapID == MulgoreUiMapID
 					and
 						info.name == subZone
 					)
@@ -1151,13 +1162,13 @@
 			end
 
 			if
-				(isRetail and uiMapID == 7) or (isCataClassic and uiMapID == 1412)
+				uiMapID == MulgoreUiMapID
 			then -- Weird stuff happens in Mulgore
 				return _isPortalInRange(-1472, 196, UnitPosition("player"))
 			end
 
 			return true
-		elseif uiMapID == 407 then -- Darkmoon Island, for Alchemy quest (29506 = A Fizzy Fusion) AutoBuy - API doesn't return any areaIDs for the zone, so we need to make special case for it
+		elseif uiMapID == DarkmoonIslandUiMapID then -- Darkmoon Island, for Alchemy quest (29506 = A Fizzy Fusion) AutoBuy - API doesn't return any areaIDs for the zone, so we need to make special case for it
 			Debug("  -- Darkmoon Island", db.XPRepBuff, db.GossipQuests)
 			if db.XPRepBuff then
 				self:RegisterEvent("BAG_UPDATE_COOLDOWN") -- WHEE! -buff
@@ -1173,7 +1184,7 @@
 				return true
 			end
 		elseif
-			(db.ShowInCapitals and capitalCityAreaIDs[uiMapID]) -- ShowInCapitals is on and we are in capital city
+			(db.ShowInCapitals and capitalCityUiMapIDs[uiMapID]) -- ShowInCapitals is on and we are in capital city
 		then
 			if db.isPTR then -- PTR Debug
 				Debug("  -- Capital:", uiMapID, info.name, subZone)
@@ -1397,9 +1408,9 @@
 		-- Additional Quests
 		if (additionalQuests.PetBattle.QuestAvailableCount > 0) and db.PetBattle then
 			local questIcon = additionalQuests.PetBattle.Icon -- 631719
-			local questCount, questMaxCount = 0, #additionalQuests.PetBattle.QuestIdTable
+			local questCount, questMaxCount = 0, additionalQuests.PetBattle.QuestAvailableCount --#additionalQuests.PetBattle.QuestIdTable
 			--for _, questId in ipairs(additionalQuests.PetBattle.QuestIdTable) do
-			for questIndex = 1, additionalQuests.PetBattle.QuestAvailableCount do
+			for questIndex = 1, questMaxCount do
 				local questId = additionalQuests.PetBattle.QuestIdTable[questIndex]
 				-- 32175 / Jeremy Feasel - Darkmoon Pet Battle!
 				-- 36471 / Christoph VonFeasel - A New Darkmoon Challenger!
@@ -1453,7 +1464,7 @@
 				objectives = objectives[1]
 			end
 
-			local questTitle = (isRetail and C_QuestLog.GetTitleForQuestID(questId)) or (isCataClassic and C_QuestLog.GetQuestInfo(questId))
+			local questTitle = (isRetail and C_QuestLog.GetTitleForQuestID(questId)) or (isAnyClassic and C_QuestLog.GetQuestInfo(questId))
 			if isRetail and (not questTitle) and (not questDataRequests[questId]) then -- Request only once
 				C_QuestLog.RequestLoadQuestByID(questId)
 				questDataRequests[questId] = true
@@ -2172,13 +2183,13 @@ local DMFQConfig = {
 					name =
 						(isRetail and C_QuestLog.GetTitleForQuestID(additionalQuests.TestYourStrength.QuestId))
 						or
-						(isCataClassic and C_QuestLog.GetQuestInfo(additionalQuests.TestYourStrength.QuestId))
+						(isAnyClassic and C_QuestLog.GetQuestInfo(additionalQuests.TestYourStrength.QuestId))
 						or
 						L.QuestTitleFix_TestYourStrength,
 					desc = string.format(L.Config_Activity_TestYourStrength_Desc, ORANGE_FONT_COLOR:WrapTextInColorCode(
 						(isRetail and C_QuestLog.GetTitleForQuestID(additionalQuests.TestYourStrength.QuestId))
 						or
-						(isCataClassic and C_QuestLog.GetQuestInfo(additionalQuests.TestYourStrength.QuestId))
+						(isAnyClassic and C_QuestLog.GetQuestInfo(additionalQuests.TestYourStrength.QuestId))
 						or
 						L.QuestTitleFix_TestYourStrength)),
 					type = "toggle",
