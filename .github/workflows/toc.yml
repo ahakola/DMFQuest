@@ -1,0 +1,33 @@
+name: Update TOC Interface version(s)
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: 0 9 * * 3 # Every Wednesday 09:00 (UTC) - 11:00/12:00 (EET/EEST)
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone project
+        uses: actions/checkout@v7
+
+      - name: Update TOC Interface version # Cata ->
+        uses: p3lim/toc-interface-updater@v4
+        with:
+          flavor: |
+            retail
+            mists
+          beta: false
+          ptr: false
+
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@v8
+        with:
+          title: "Automated: Update TOC Interface version"
+          body: "Automated update of the Interface version(s) in the TOC file to match the latest game client release(s).
+
+          No manual review of logic is required, only verification that everything remains intact."
+          commit-message: Update TOC Interface version
+          branch: interface-version
+          delete-branch: true
